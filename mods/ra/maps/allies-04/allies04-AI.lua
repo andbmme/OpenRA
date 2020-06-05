@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -14,14 +14,16 @@ AttackGroupSizes =
 {
 	easy = 6,
 	normal = 8,
-	hard = 10
+	hard = 10,
+	tough = 12
 }
 
 AttackDelays =
 {
 	easy = { DateTime.Seconds(4), DateTime.Seconds(9) },
 	normal = { DateTime.Seconds(2), DateTime.Seconds(7) },
-	hard = { DateTime.Seconds(1), DateTime.Seconds(5) }
+	hard = { DateTime.Seconds(1), DateTime.Seconds(5) },
+	tough = { DateTime.Seconds(1), DateTime.Seconds(5) }
 }
 
 AttackRallyPoints =
@@ -243,6 +245,10 @@ ProduceAircraft = function()
 end
 
 TargetAndAttack = function(yak, target)
+	if yak.IsDead then
+		return
+	end
+
 	if not target or target.IsDead or (not target.IsInWorld) then
 		local enemies = Utils.Where(Map.ActorsInWorld, function(self) return self.Owner == player and self.HasProperty("Health") and yak.CanTarget(self) end)
 
@@ -258,7 +264,11 @@ TargetAndAttack = function(yak, target)
 	end
 
 	yak.CallFunc(function()
-		TargetAndAttack(yak, target)
+		-- TODO: Replace this with an idle trigger once that works for aircraft
+		-- Add a delay of one tick to fix an endless recursive call
+		Trigger.AfterDelay(1, function()
+			TargetAndAttack(yak, target)
+		end)
 	end)
 end
 

@@ -30,6 +30,7 @@ Players:
 		Color: E2E6F5
 		Allies: GoodGuy, France
 		Enemies: USSR
+		Bot: campaign
 	PlayerReference@USSR:
 		Name: USSR
 		Faction: soviet
@@ -48,12 +49,14 @@ Players:
 		Color: E2E6F5
 		Allies: Greece, France
 		Enemies: USSR
+		Bot: campaign
 	PlayerReference@France:
 		Name: France
 		Faction: allies
 		Color: 0CF7B2
 		Allies: Greece, GoodGuy
 		Enemies: USSR
+		Bot: campaign
 
 Actors:
 	Actor0: sbag
@@ -225,7 +228,7 @@ Actors:
 		Location: 69,49
 		Owner: Greece
 		Facing: 32
-	Radar: dome
+	RadarDome: dome
 		Location: 70,45
 		Owner: France
 	Actor57: fact
@@ -318,7 +321,7 @@ Actors:
 		Facing: 96
 	mcvGG: mcv
 		Location: 75,46
-		Owner: GoodGuy
+		Owner: Greece
 		Facing: 192
 	Actor83: 1tnk
 		Location: 43,47
@@ -342,15 +345,15 @@ Actors:
 		SubCell: 2
 	Runner1: e1
 		Location: 25,75
-		Owner: GoodGuy
+		Owner: Greece
 		SubCell: 0
 	Runner2: e1
 		Location: 25,76
-		Owner: GoodGuy
+		Owner: Greece
 		SubCell: 2
 	Runner3: e1
 		Location: 26,75
-		Owner: GoodGuy
+		Owner: Greece
 		SubCell: 0
 	Actor90: e1
 		Location: 64,49
@@ -412,72 +415,68 @@ Actors:
 		Facing: 96
 		TurretFacing: 192
 	Minelayer: mnly
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 67,45
 		Facing: 92
 	Actor166: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 67,54
 		Facing: 92
 		TurretFacing: 92
 	Actor167: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 67,59
 		Facing: 60
 		TurretFacing: 60
 	Actor168: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 83,56
 		Facing: 28
 		TurretFacing: 28
 	Actor169: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 83,51
 		Facing: 92
 		TurretFacing: 92
 	mcvtransport: lst
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 80,45
 		Facing: 92
 	Actor171: dd
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 91,51
 		Facing: 28
 		TurretFacing: 28
 	Actor172: dd
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 84,44
 		Facing: 92
 		TurretFacing: 92
 	Actor173: dd
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 96,44
 		Facing: 92
 		TurretFacing: 92
 	Actor174: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 96,51
 		Facing: 92
 		TurretFacing: 92
 	Actor175: dd
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 101,49
 		Facing: 60
 		TurretFacing: 60
 	Actor176: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 107,70
 		Facing: 188
 		TurretFacing: 188
 	Actor177: pt
-		Owner: GoodGuy
+		Owner: Greece
 		Location: 58,89
 		Facing: 60
 		TurretFacing: 60
-	Helper: proc
-		Owner: Greece
-		Location: 42,42
-		FreeActor: False
 	Actor181: mine
 		Owner: Neutral
 		Location: 63,65

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,15 +10,15 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor can grant experience levels equal to it's own current level via entering to other actors with the `AcceptsDeliveredExperience` trait.")]
-	class DeliversExperienceInfo : ITraitInfo, Requires<GainsExperienceInfo>
+	class DeliversExperienceInfo : TraitInfo, Requires<GainsExperienceInfo>
 	{
 		[Desc("The amount of experience the donating player receives.")]
 		public readonly int PlayerExperience = 0;
@@ -26,9 +26,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Identifier checked against AcceptsDeliveredExperience.ValidTypes. Only needed if the latter is not empty.")]
 		public readonly string Type = null;
 
-		[VoiceReference] public readonly string Voice = "Action";
+		[Desc("Cursor to display when hovering over a valid actor to deliver experience to.")]
+		public readonly string Cursor = "enter";
 
-		public object Create(ActorInitializer init) { return new DeliversExperience(init, this); }
+		[VoiceReference]
+		public readonly string Voice = "Action";
+
+		public override object Create(ActorInitializer init) { return new DeliversExperience(init, this); }
 	}
 
 	class DeliversExperience : IIssueOrder, IResolveOrder, IOrderVoice
@@ -49,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				if (gainsExperience.Level != 0)
-					yield return new DeliversExperienceOrderTargeter();
+					yield return new DeliversExperienceOrderTargeter(info);
 			}
 		}
 
@@ -63,6 +67,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public string VoicePhraseForOrder(Actor self, Order order)
 		{
+			if (order.OrderString != "DeliverExperience")
+				return null;
+
 			return info.Voice;
 		}
 
@@ -71,27 +78,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "DeliverExperience")
 				return;
 
-			var target = self.ResolveFrozenActorOrder(order, Color.Yellow);
-			if (target.Type != TargetType.Actor)
+			if (order.Target.Type == TargetType.Actor)
+			{
+				var targetGainsExperience = order.Target.Actor.Trait<GainsExperience>();
+				if (targetGainsExperience.Level == targetGainsExperience.MaxLevel)
+					return;
+			}
+			else if (order.Target.Type != TargetType.FrozenActor)
 				return;
 
-			var targetGainsExperience = target.Actor.Trait<GainsExperience>();
-			if (targetGainsExperience.Level == targetGainsExperience.MaxLevel)
-				return;
-
-			if (!order.Queued)
-				self.CancelActivity();
-
-			var level = gainsExperience.Level;
-
-			self.SetTargetLine(target, Color.Yellow);
-			self.QueueActivity(new DonateExperience(self, target.Actor, level, info.PlayerExperience, targetGainsExperience));
+			self.QueueActivity(order.Queued, new DonateExperience(self, order.Target, gainsExperience.Level, info.PlayerExperience));
+			self.ShowTargetLines();
 		}
 
 		public class DeliversExperienceOrderTargeter : UnitOrderTargeter
 		{
-			public DeliversExperienceOrderTargeter()
-				: base("DeliverExperience", 5, "enter", true, true) { }
+			public DeliversExperienceOrderTargeter(DeliversExperienceInfo info)
+				: base("DeliverExperience", 5, info.Cursor, true, true) { }
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{

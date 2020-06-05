@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,18 +11,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using OpenRA.Effects;
+using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Projectiles
 {
-	public class AreaBeamInfo : IProjectileInfo, IRulesetLoaded<WeaponInfo>
+	public class AreaBeamInfo : IProjectileInfo
 	{
 		[Desc("Projectile speed in WDist / tick, two values indicate a randomly picked velocity per beam.")]
 		public readonly WDist[] Speed = { new WDist(128) };
@@ -69,27 +68,10 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Beam color is the player's color.")]
 		public readonly bool UsePlayerColor = false;
 
-		[Desc("Scan radius for actors with projectile-blocking trait. If set to a negative value (default), it will automatically scale",
-			"to the blocker with the largest health shape. Only set custom values if you know what you're doing.")]
-		public WDist BlockerScanRadius = new WDist(-1);
-
-		[Desc("Scan radius for actors damaged by beam. If set to a negative value (default), it will automatically scale to the largest health shape.",
-			"Only set custom values if you know what you're doing.")]
-		public WDist AreaVictimScanRadius = new WDist(-1);
-
 		public IProjectile Create(ProjectileArgs args)
 		{
-			var c = UsePlayerColor ? args.SourceActor.Owner.Color.RGB : Color;
+			var c = UsePlayerColor ? args.SourceActor.Owner.Color : Color;
 			return new AreaBeam(this, args, c);
-		}
-
-		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo wi)
-		{
-			if (BlockerScanRadius < WDist.Zero)
-				BlockerScanRadius = Util.MinimumRequiredBlockerScanRadius(rules);
-
-			if (AreaVictimScanRadius < WDist.Zero)
-				AreaVictimScanRadius = Util.MinimumRequiredVictimScanRadius(rules);
 		}
 	}
 
@@ -101,19 +83,30 @@ namespace OpenRA.Mods.Common.Projectiles
 		readonly Color color;
 		readonly WDist speed;
 
-		[Sync] WPos headPos;
-		[Sync] WPos tailPos;
-		[Sync] WPos target;
+		[Sync]
+		WPos headPos;
+
+		[Sync]
+		WPos tailPos;
+
+		[Sync]
+		WPos target;
+
 		int length;
-		int towardsTargetFacing;
+		WAngle towardsTargetFacing;
 		int headTicks;
 		int tailTicks;
 		bool isHeadTravelling = true;
 		bool isTailTravelling;
 		bool continueTracking = true;
 
-		bool IsBeamComplete { get { return !isHeadTravelling && headTicks >= length &&
-			!isTailTravelling && tailTicks >= length; } }
+		bool IsBeamComplete
+		{
+			get
+			{
+				return !isHeadTravelling && headTicks >= length && !isTailTravelling && tailTicks >= length;
+			}
+		}
 
 		public AreaBeam(AreaBeamInfo info, ProjectileArgs args, Color color)
 		{
@@ -140,11 +133,11 @@ namespace OpenRA.Mods.Common.Projectiles
 				target += WVec.FromPDF(world.SharedRandom, 2) * maxOffset / 1024;
 			}
 
-			towardsTargetFacing = (target - headPos).Yaw.Facing;
+			towardsTargetFacing = (target - headPos).Yaw;
 
 			// Update the target position with the range we shoot beyond the target by
 			// I.e. we can deliberately overshoot, so aim for that position
-			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromFacing(towardsTargetFacing));
+			var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(towardsTargetFacing));
 			target += dir * info.BeyondTargetRange.Length / 1024;
 
 			length = Math.Max((target - headPos).Length / speed.Length, 1);
@@ -167,11 +160,11 @@ namespace OpenRA.Mods.Common.Projectiles
 				else
 				{
 					target = guidedTargetPos;
-					towardsTargetFacing = (target - args.Source).Yaw.Facing;
+					towardsTargetFacing = (target - args.Source).Yaw;
 
 					// Update the target position with the range we shoot beyond the target by
 					// I.e. we can deliberately overshoot, so aim for that position
-					var dir = new WVec(0, -1024, 0).Rotate(WRot.FromFacing(towardsTargetFacing));
+					var dir = new WVec(0, -1024, 0).Rotate(WRot.FromYaw(towardsTargetFacing));
 					target += dir * info.BeyondTargetRange.Length / 1024;
 				}
 			}
@@ -208,7 +201,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			// While the head is travelling, the tail must start to follow Duration ticks later.
 			// Alternatively, also stop emitting the beam if source actor dies or is ordered to stop.
 			if ((headTicks >= info.Duration && !isTailTravelling) || args.SourceActor.IsDead ||
-				!actorAttackBase.IsAttacking || outOfWeaponRange)
+				!actorAttackBase.IsAiming || outOfWeaponRange)
 				StopTargeting();
 
 			if (isTailTravelling)
@@ -225,7 +218,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			// Check for blocking actors
 			WPos blockedPos;
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, tailPos, headPos,
-				info.Width, info.BlockerScanRadius, out blockedPos))
+				info.Width, out blockedPos))
 			{
 				headPos = blockedPos;
 				target = headPos;
@@ -235,11 +228,17 @@ namespace OpenRA.Mods.Common.Projectiles
 			// Damage is applied to intersected actors every DamageInterval ticks
 			if (headTicks % info.DamageInterval == 0)
 			{
-				var actors = world.FindActorsOnLine(tailPos, headPos, info.Width, info.AreaVictimScanRadius);
+				var actors = world.FindActorsOnLine(tailPos, headPos, info.Width);
 				foreach (var a in actors)
 				{
 					var adjustedModifiers = args.DamageModifiers.Append(GetFalloff((args.Source - a.CenterPosition).Length));
-					args.Weapon.Impact(Target.FromActor(a), args.SourceActor, adjustedModifiers);
+
+					var warheadArgs = new WarheadArgs(args)
+					{
+						DamageModifiers = adjustedModifiers.ToArray(),
+					};
+
+					args.Weapon.Impact(Target.FromActor(a), warheadArgs);
 				}
 			}
 

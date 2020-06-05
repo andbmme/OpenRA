@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -95,9 +95,11 @@ end
 SendUSSRParadrops = function(facing, dropzone)
 	local paraproxy = Actor.Create("powerproxy.paratroopers", false, { Owner = ussr })
 
-	local units = paraproxy.SendParatroopers(dropzone.CenterPosition, false, facing)
-	Utils.Do(units, function(unit)
-		IdleHunt(unit)
+	local aircraft = paraproxy.ActivateParatroopers(dropzone.CenterPosition, facing)
+	Utils.Do(aircraft, function(a)
+		Trigger.OnPassengerExited(a, function(t, p)
+			IdleHunt(p)
+		end)
 	end)
 
 	paraproxy.Destroy()
@@ -221,6 +223,10 @@ InitTriggers = function()
 	end)
 
 	Trigger.OnKilled(ExplosiveBarrel, function()
+		if reinforcementsTriggered then
+			return
+		end
+
 		if not ExplodingBridge.IsDead then ExplodingBridge.Kill() end
 		reinforcementsTriggered = true
 		Trigger.AfterDelay(DateTime.Seconds(1), SendUSSRTankReinforcements)
@@ -248,8 +254,8 @@ InitTriggers = function()
 			AlertFirstBase()
 		end)
 	end)
-	Trigger.OnAllRemovedFromWorld(FirstUSSRBase, function()
-		if baseCamera then
+	Trigger.OnAllKilledOrCaptured(FirstUSSRBase, function()
+		if baseCamera and baseCamera.IsInWorld then
 			baseCamera.Destroy()
 		end
 	end)
@@ -357,7 +363,7 @@ InitTriggers = function()
 
 	-- The engineers need to leave the enemy base to count as 'freed'
 	Trigger.OnExitedProximityTrigger(BaseCameraWaypoint.CenterPosition, WDist.New(7 * 1024), function(a, id)
-		if a.Type == "hacke6" and not EngisFreed then
+		if a.Type == "e6" and not EngisFreed then
 			EngisFreed = true
 			Trigger.RemoveProximityTrigger(id)
 		end

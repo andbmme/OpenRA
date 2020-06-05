@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using Eluant;
 using OpenRA.Mods.Common.Traits;
@@ -20,7 +21,8 @@ namespace OpenRA.Mods.Common.Scripting
 	[ScriptGlobal("Actor")]
 	public class ActorGlobal : ScriptGlobal
 	{
-		public ActorGlobal(ScriptContext context) : base(context) { }
+		public ActorGlobal(ScriptContext context)
+			: base(context) { }
 
 		[Desc("Create a new actor. initTable specifies a list of key-value pairs that defines the initial parameters for the actor's traits.")]
 		public Actor Create(string type, bool addToWorld, LuaTable initTable)
@@ -39,11 +41,18 @@ namespace OpenRA.Mods.Common.Scripting
 					if (initType == null)
 						throw new LuaException("Unknown initializer type '{0}'".F(typeName));
 
-					// Cast it up to an IActorInit<T>
-					var genericType = initType.GetInterfaces()
-						.First(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IActorInit<>));
-					var innerType = genericType.GetGenericArguments().First();
-					var valueType = innerType.IsEnum ? typeof(int) : innerType;
+					// HACK: Handle OwnerInit as a special case until ActorInit creation can be rewritten
+					Type innerType, valueType;
+					if (initType != typeof(OwnerInit))
+					{
+						// Cast it up to an IActorInit<T>
+						var genericType = initType.GetInterfaces()
+							.First(x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IActorInit<>));
+						innerType = genericType.GetGenericArguments().First();
+						valueType = innerType.IsEnum ? Enum.GetUnderlyingType(innerType) : innerType;
+					}
+					else
+						innerType = valueType = typeof(Player);
 
 					// Try and coerce the table value to the required type
 					object value;
@@ -55,6 +64,10 @@ namespace OpenRA.Mods.Common.Scripting
 					initDict.Add(test);
 				}
 			}
+
+			var owner = initDict.GetOrDefault<OwnerInit>();
+			if (owner == null)
+				throw new LuaException("Tried to create actor '{0}' with an invalid or no owner init!".F(type));
 
 			// The actor must be added to the world at the end of the tick
 			var a = Context.World.CreateActor(false, type, initDict);

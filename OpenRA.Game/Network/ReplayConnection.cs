@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using OpenRA.FileFormats;
 using OpenRA.Primitives;
 
@@ -30,9 +31,17 @@ namespace OpenRA.Network
 		int ordersFrame;
 		Dictionary<int, int> lastClientsFrame = new Dictionary<int, int>();
 
-		public int LocalClientId { get { return 0; } }
+		public int LocalClientId { get { return -1; } }
 		public ConnectionState ConnectionState { get { return ConnectionState.Connected; } }
+		public IPEndPoint EndPoint
+		{
+			get { throw new NotSupportedException("A replay connection doesn't have an endpoint"); }
+		}
+
+		public string ErrorMessage { get { return null; } }
+
 		public readonly int TickCount;
+		public readonly int FinalGameTick;
 		public readonly bool IsValid;
 		public readonly Session LobbyInfo;
 		public readonly string Filename;
@@ -40,6 +49,7 @@ namespace OpenRA.Network
 		public ReplayConnection(string replayFilename)
 		{
 			Filename = replayFilename;
+			FinalGameTick = ReplayMetadata.Read(replayFilename).GameInfo.FinalGameTick;
 
 			// Parse replay data into a struct that can be fed to the game in chunks
 			// to avoid issues with all immediate orders being resolved on the first tick.
@@ -63,9 +73,9 @@ namespace OpenRA.Network
 						(!lastClientsFrame.ContainsKey(client) || frame > lastClientsFrame[client]))
 						lastClientsFrame[client] = frame;
 
-					if (packet.Length == 5 && packet[4] == 0xBF)
+					if (packet.Length == 5 && packet[4] == (byte)OrderType.Disconnect)
 						continue; // disconnect
-					else if (packet.Length >= 5 && packet[4] == 0x65)
+					else if (packet.Length >= 5 && packet[4] == (byte)OrderType.SyncHash)
 						continue; // sync
 					else if (frame == 0)
 					{
@@ -108,7 +118,7 @@ namespace OpenRA.Network
 							continue;
 
 						var packet = tmpPacketPair.Second;
-						if (packet.Length == 5 && packet[4] == 0xBF)
+						if (packet.Length == 5 && packet[4] == (byte)OrderType.Disconnect)
 						{
 							var lastClientFrame = lastClientsFrame[client];
 							var lastFramePacket = BitConverter.GetBytes(lastClientFrame);
@@ -123,14 +133,14 @@ namespace OpenRA.Network
 
 		// Do nothing: ignore locally generated orders
 		public void Send(int frame, List<byte[]> orders) { }
-		public void SendImmediate(List<byte[]> orders) { }
+		public void SendImmediate(IEnumerable<byte[]> orders) { }
 
 		public void SendSync(int frame, byte[] syncData)
 		{
-			var ms = new MemoryStream();
-			ms.Write(BitConverter.GetBytes(frame));
-			ms.Write(syncData);
-			sync.Add(ms.ToArray());
+			var ms = new MemoryStream(4 + syncData.Length);
+			ms.WriteArray(BitConverter.GetBytes(frame));
+			ms.WriteArray(syncData);
+			sync.Add(ms.GetBuffer());
 
 			// Store the current frame so Receive() can return the next chunk of orders.
 			ordersFrame = frame + LobbyInfo.GlobalSettings.OrderLatency;

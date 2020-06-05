@@ -3,7 +3,7 @@
 	Range: 6c0
 	MinRange: 0c512
 	Report: bazook1.aud
-	ValidTargets: Ground, Air
+	ValidTargets: Ground, Water, Air
 	Projectile: Missile
 		Arm: 0
 		Blockable: false
@@ -17,13 +17,13 @@
 		RangeLimit: 7c204
 	Warhead@1Dam: SpreadDamage
 		Spread: 128
-		Damage: 35
+		Damage: 2500
 		ValidTargets: Ground, Air
 		Versus:
-			None: 20
-			Wood: 85
-			Light: 100
-			Heavy: 100
+			None: 28
+			Wood: 116
+			Light: 140
+			Heavy: 140
 		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
 	Warhead@2Smu: LeaveSmudge
 		SmudgeType: Crater
@@ -31,8 +31,13 @@
 	Warhead@3Eff: CreateEffect
 		Explosions: small_frag
 		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Ground, Water, Air
+		ImpactActors: false
+		ValidTargets: Ground, Water
+	Warhead@4EffAir: CreateEffect
+		Explosions: small_poof
+		ImpactSounds: xplos.aud
+		ImpactActors: false
+		ValidTargets: Air
 
 Dragon:
 	Inherits: ^MissileWeapon
@@ -49,11 +54,10 @@ Dragon:
 	Warhead@1Dam: SpreadDamage
 		ValidTargets: Air
 		Versus:
-			None: 100
-			Wood: 100
-			Light: 100
-			Heavy: 75
-	Warhead@3Eff: CreateEffect
+			None: 140
+			Wood: 140
+			Heavy: 104
+	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
 
 Rockets:
@@ -67,32 +71,30 @@ BikeRockets:
 		HorizontalRateOfTurn: 10
 		Speed: 213
 	Warhead@1Dam: SpreadDamage
-		Damage: 31
 		Versus:
-			None: 25
-			Wood: 75
+			None: 28
+			Wood: 92
+			Light: 124
+			Heavy: 124
 
 OrcaAGMissiles:
 	Inherits: ^MissileWeapon
 	ReloadDelay: 12
-	Burst: 2
-	BurstDelays: 12
 	Range: 5c0
 	MinRange: 1c256
-	ValidTargets: Ground
+	ValidTargets: Ground, Water
 	Projectile: Missile
 		Arm: 1
 		HorizontalRateOfTurn: 20
 		Speed: 256
 		RangeLimit: 6c0
 	Warhead@1Dam: SpreadDamage
-		Damage: 28
 		ValidTargets: Ground
 		Versus:
-			None: 30
-			Wood: 100
-			Light: 100
-			Heavy: 75
+			None: 32
+			Wood: 112
+			Light: 112
+			Heavy: 84
 
 OrcaAAMissiles:
 	Inherits: OrcaAGMissiles
@@ -103,9 +105,9 @@ OrcaAAMissiles:
 	Warhead@1Dam: SpreadDamage
 		ValidTargets: Air
 		Versus:
-			Light: 75
-			Heavy: 50
-	-Warhead@2Smu: LeaveSmudge
+			Light: 84
+			Heavy: 56
+	-Warhead@2Smu:
 
 MammothMissiles:
 	Inherits: ^MissileWeapon
@@ -120,21 +122,16 @@ MammothMissiles:
 		RangeLimit: 6c0
 	Warhead@1Dam: SpreadDamage
 		Spread: 298
-		Damage: 45
+		Damage: 5000
 		Versus:
-			None: 50
-			Wood: 75
-			Light: 100
-			Heavy: 50
+			None: 44
+			Wood: 66
+			Light: 90
+			Heavy: 44
 	Warhead@3Eff: CreateEffect
 		Explosions: small_poof
-		ImpactSounds: xplos.aud
-		ValidTargets: Ground, Water
 	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Air
 
 227mm:
 	Inherits: ^MissileWeapon
@@ -144,25 +141,29 @@ MammothMissiles:
 	Burst: 4
 	BurstDelays: 4
 	Report: rocket1.aud
-	ValidTargets: Ground
+	ValidTargets: Ground, Water
 	TargetActorCenter: true
+	# Remove default Missile properties
+	-Projectile:
 	Projectile: Bullet
+		Blockable: false
+		Image: DRAGON
+		Shadow: true
+		TrailImage: smokey
 		Inaccuracy: 853
 		LaunchAngle: 62
 		ContrailLength: 10
 		Speed: 341
 	Warhead@1Dam: SpreadDamage
 		Spread: 683
-		Damage: 25
 		ValidTargets: Ground
 		Versus:
-			None: 25
+			None: 24
 			Wood: 60
 			Light: 100
-			Heavy: 50
+			Heavy: 48
 	Warhead@3Eff: CreateEffect
 		Explosions: med_frag
-		ImpactSounds: xplos.aud
 
 227mm.stnk:
 	Inherits: ^MissileWeapon
@@ -177,7 +178,7 @@ MammothMissiles:
 		Speed: 213
 		RangeLimit: 8c409
 	Warhead@1Dam: SpreadDamage
-		Damage: 60
+		Damage: 6000
 		Versus:
 			None: 25
 			Wood: 75
@@ -198,7 +199,7 @@ BoatMissile:
 		RangeLimit: 9c614
 	Warhead@1Dam: SpreadDamage
 		Spread: 256
-		Damage: 60
+		Damage: 6000
 		Versus:
 			None: 90
 			Wood: 75
@@ -207,35 +208,30 @@ BoatMissile:
 		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
 	Warhead@3Eff: CreateEffect
 		Explosions: small_poof
-		ImpactSounds: xplos.aud
-		ValidTargets: Ground, Water
 	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Air
 
 TowerMissile:
 	Inherits: ^MissileWeapon
 	ReloadDelay: 15
 	Range: 7c0
 	Report: rocket2.aud
-	ValidTargets: Ground
+	ValidTargets: Ground, Water
 	Projectile: Missile
 		HorizontalRateOfTurn: 20
 		Speed: 298
 		RangeLimit: 8c409
 	Warhead@1Dam: SpreadDamage
-		Spread: 683
-		Damage: 25
+		Spread: 483
 		ValidTargets: Ground
 		Versus:
-			None: 50
-			Wood: 25
+			None: 52
+			Wood: 24
+			Light: 100
+			Heavy: 100
 		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
 	Warhead@3Eff: CreateEffect
 		Explosions: med_frag
-		ImpactSounds: xplos.aud
 
 TowerAAMissile:
 	Inherits: ^MissileWeapon
@@ -251,17 +247,15 @@ TowerAAMissile:
 		Inaccuracy: 0
 	Warhead@1Dam: SpreadDamage
 		Spread: 682
-		Damage: 35
 		ValidTargets: Air
 		Versus:
-			None: 100
-			Wood: 100
-			Light: 100
-			Heavy: 75
-	-Warhead@2Smu: LeaveSmudge
-	Warhead@3Eff: CreateEffect
+			None: 140
+			Wood: 140
+			Light: 140
+			Heavy: 104
+	-Warhead@2Smu:
+	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
 
 Patriot:
 	Inherits: ^MissileWeapon
@@ -278,11 +272,13 @@ Patriot:
 		Inaccuracy: 0
 	Warhead@1Dam: SpreadDamage
 		Spread: 682
-		Damage: 50
+		Damage: 5000
 		ValidTargets: Air
 		Versus:
-			Heavy: 75
-	-Warhead@2Smu: LeaveSmudge
-	Warhead@3Eff: CreateEffect
+			None: 20
+			Wood: 84
+			Light: 100
+			Heavy: 74
+	-Warhead@2Smu:
+	Warhead@4EffAir: CreateEffect
 		Explosions: poof
-		ImpactSounds: xplos.aud

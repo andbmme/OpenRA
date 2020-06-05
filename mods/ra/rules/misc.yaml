@@ -31,14 +31,14 @@ CRATE:
 		SelectionShares: 5
 	HideMapCrateAction:
 		SelectionShares: 5
-		Effect: hide-map
-	HealUnitsCrateAction:
-		Notification: heal2.aud
+		Sequence: hide-map
+	HealActorsCrateAction:
+		Sound: heal2.aud
 		SelectionShares: 2
-		Effect: heal
+		Sequence: heal
 	RevealMapCrateAction:
 		SelectionShares: 1
-		Effect: reveal-map
+		Sequence: reveal-map
 	DuplicateUnitCrateAction:
 		SelectionShares: 10
 		MaxAmount: 5
@@ -104,8 +104,8 @@ CRATE:
 		TimeDelay: 4500
 	GrantExternalConditionCrateAction@invuln:
 		SelectionShares: 5
-		Effect: invuln
-		Notification: ironcur9.aud
+		Sequence: invuln
+		Sound: ironcur9.aud
 		Condition: invulnerability
 		Duration: 600
 
@@ -124,10 +124,10 @@ HEALCRATE:
 	Inherits: ^Crate
 	Tooltip:
 		Name: Heal Crate
-	HealUnitsCrateAction:
-		Notification: heal2.aud
+	HealActorsCrateAction:
+		Sound: heal2.aud
 		SelectionShares: 1
-		Effect: heal
+		Sequence: heal
 
 WCRATE:
 	Inherits: ^Crate
@@ -142,6 +142,7 @@ SCRATE:
 		Name: Steel Crate
 
 CAMERA:
+	Interactable:
 	EditorOnlyTooltip:
 		Name: (reveals area to owner)
 	AlwaysVisible:
@@ -155,7 +156,7 @@ CAMERA:
 	WithSpriteBody:
 	RenderSpritesEditorOnly:
 		Image: camera
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
 
 camera.paradrop:
@@ -169,9 +170,6 @@ camera.spyplane:
 	Inherits: CAMERA
 	EditorOnlyTooltip:
 		Name: (support power proxy camera)
-	DetectCloaked:
-		Range: 10c0
-		CloakTypes: Cloak, Hijacker
 
 SONAR:
 	Inherits: camera.spyplane
@@ -180,6 +178,7 @@ SONAR:
 	-RevealsShroud:
 	DetectCloaked:
 		CloakTypes: Underwater
+		Range: 10c0
 
 FLARE:
 	Immobile:
@@ -195,15 +194,16 @@ FLARE:
 		QuantizedFacings: 1
 	HiddenUnderFog:
 		Type: CenterPosition
+	Interactable:
 	Tooltip:
 		Name: Flare
 		ShowOwnerRow: false
-	AutoSelectionSize:
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: Decoration
 
 MINE:
 	Inherits@1: ^SpriteActor
+	Interactable:
 	HiddenUnderShroud:
 	Tooltip:
 		Name: Ore Mine
@@ -216,12 +216,17 @@ MINE:
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Ore
+	AppearsOnMapPreview:
+		Terrain: Ore
 	SeedsResource:
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: Resource spawn
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 
 GMINE:
 	Inherits@1: ^SpriteActor
+	Interactable:
 	HiddenUnderShroud:
 	Tooltip:
 		Name: Gem Mine
@@ -234,13 +239,18 @@ GMINE:
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Gems
+	AppearsOnMapPreview:
+		Terrain: Gems
 	SeedsResource:
 		ResourceType: Gems
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: Resource spawn
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 
 RAILMINE:
 	Inherits@1: ^SpriteActor
+	Interactable:
 	HiddenUnderShroud:
 	Tooltip:
 		Name: Abandoned Mine
@@ -250,13 +260,16 @@ RAILMINE:
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
-	EditorTilesetFilter:
+	MapEditorData:
 		ExcludeTilesets: INTERIOR
 		Categories: Civilian building
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 
 QUEE:
 	Inherits@1: ^SpriteActor
 	Inherits@shape: ^2x1Shape
+	Interactable:
 	HiddenUnderShroud:
 	Tooltip:
 		Name: Queen Ant
@@ -265,13 +278,14 @@ QUEE:
 		Dimensions: 2,1
 	WithSpriteBody:
 	AppearsOnRadar:
-	EditorTilesetFilter:
+	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
 
 LAR1:
 	Inherits@1: ^SpriteActor
 	Inherits@shape: ^1x1Shape
+	Interactable:
 	HiddenUnderShroud:
 	Tooltip:
 		Name: Ant Larva
@@ -282,7 +296,7 @@ LAR1:
 		Palette: terrain
 	WithSpriteBody:
 	AppearsOnRadar:
-	EditorTilesetFilter:
+	MapEditorData:
 		RequireTilesets: INTERIOR
 		Categories: Critter
 
@@ -296,7 +310,7 @@ powerproxy.parabombs:
 	AirstrikePower:
 		Icon: parabombs
 		Description: Parabombs (Single Use)
-		LongDesc: Three Badgers drops a load of parachuted\nbombs on your target.
+		LongDesc: A Badger drops a load of parachuted bombs on your target.
 		OneShot: true
 		AllowMultiple: true
 		UnitType: badr.bomber
@@ -305,6 +319,7 @@ powerproxy.parabombs:
 		DisplayBeacon: True
 		BeaconPoster: pbmbicon
 		CameraActor: camera
+		CameraRemoveDelay: 150
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
@@ -315,7 +330,7 @@ powerproxy.sonarpulse:
 		Icon: sonar
 		Description: Sonar Pulse
 		LongDesc: Reveals all submarines in the vicinity for a \nshort time.
-		ChargeTime: 30
+		ChargeInterval: 750
 		EndChargeSpeechNotification: SonarPulseReady
 		SelectTargetSpeechNotification: SelectTarget
 		Actor: sonar
@@ -323,6 +338,8 @@ powerproxy.sonarpulse:
 		DeploySound: sonpulse.aud
 		EffectImage: moveflsh
 		EffectPalette: moveflash
+		SupportPowerPaletteOrder: 80
+		EffectSequence: idle
 
 powerproxy.paratroopers:
 	AlwaysVisible:
@@ -354,6 +371,7 @@ aircraft.upgraded:
 	ProvidesPrerequisite:
 
 mpspawn:
+	Interactable:
 	EditorOnlyTooltip:
 		Name: (multiplayer player starting point)
 	AlwaysVisible:
@@ -363,10 +381,13 @@ mpspawn:
 	RenderSpritesEditorOnly:
 	BodyOrientation:
 		QuantizedFacings: 1
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 
 waypoint:
+	Interactable:
 	EditorOnlyTooltip:
 		Name: (waypoint for scripted behavior)
 	AlwaysVisible:
@@ -376,11 +397,13 @@ waypoint:
 	RenderSpritesEditorOnly:
 	BodyOrientation:
 		QuantizedFacings: 1
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
 
-^fact.colorpicker:
+fact.colorpicker:
 	Inherits: FACT
+	-Buildable:
+	-MapEditorData:
 	RenderSprites:
 		Image: fact
 		Palette: colorpicker
@@ -393,12 +416,12 @@ CTFLAG:
 	Tooltip:
 		Name: Flag
 	WithBuildingBib:
-		HasMinibib: Yes
+		HasMinibib: true
 	-HitShape:
 	-Health:
 	-Explodes:
 	-Selectable:
-	-SelectionDecorations:
 	-Targetable:
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: Decoration
+	Interactable:

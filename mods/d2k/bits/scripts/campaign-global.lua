@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,7 @@
 Difficulty = Map.LobbyOption("difficulty")
 
 IdleHunt = function(actor)
-	if not actor.IsDead then
+	if actor.HasProperty("Hunt") and not actor.IsDead then
 		Trigger.OnIdle(actor, actor.Hunt)
 	end
 end
@@ -39,7 +39,7 @@ InitObjectives = function(player)
 	end)
 end
 
-SendCarryallReinforcements = function(player, currentWave, totalWaves, delay, pathFunction, unitTypes, customCondition, customHuntFunction)
+SendCarryallReinforcements = function(player, currentWave, totalWaves, delay, pathFunction, unitTypes, customCondition, customHuntFunction, announcementFunction)
 	Trigger.AfterDelay(delay, function()
 		if customCondition and customCondition() then
 			return
@@ -48,6 +48,10 @@ SendCarryallReinforcements = function(player, currentWave, totalWaves, delay, pa
 		currentWave = currentWave + 1
 		if currentWave > totalWaves then
 			return
+		end
+
+		if announcementFunction then
+			announcementFunction(currentWave)
 		end
 
 		local path = pathFunction()
@@ -76,6 +80,10 @@ TriggerCarryallReinforcements = function(triggeringPlayer, reinforcingPlayer, ar
 			Utils.Do(units, IdleHunt)
 		end
 	end)
+end
+
+DestroyCarryalls = function(player)
+	Utils.Do(player.GetActorsByType("carryall"), function(actor) actor.Kill() end)
 end
 
 -- Used for the AI:
@@ -122,6 +130,9 @@ end
 
 DefendActor = function(unit, defendingPlayer, defenderCount)
 	Trigger.OnDamaged(unit, function(self, attacker)
+		if unit.Owner ~= defendingPlayer then
+			return
+		end
 
 		-- Don't try to attack spiceblooms
 		if attacker and attacker.Type == "spicebloom" then
@@ -179,6 +190,10 @@ end
 
 DefendAndRepairBase = function(owner, baseBuildings, modifier, defenderCount)
 	Utils.Do(baseBuildings, function(actor)
+		if actor.IsDead then
+			return
+		end
+
 		DefendActor(actor, owner, defenderCount)
 		RepairBuilding(owner, actor, modifier)
 	end)
@@ -190,7 +205,7 @@ ProduceUnits = function(player, factory, delay, toBuild, attackSize, attackThres
 	end
 
 	if HoldProduction[player] then
-		Trigger.AfterDelay(DateTime.Minutes(1), function() ProduceUnits(player, factory, delay, toBuild, attackSize, attackThresholdSize) end)
+		Trigger.AfterDelay(DateTime.Seconds(10), function() ProduceUnits(player, factory, delay, toBuild, attackSize, attackThresholdSize) end)
 		return
 	end
 

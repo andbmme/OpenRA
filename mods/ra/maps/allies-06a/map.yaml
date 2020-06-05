@@ -26,6 +26,7 @@ Players:
 		Faction: england
 	PlayerReference@USSR:
 		Name: USSR
+		Bot: campaign
 		Faction: soviet
 		Color: FF1400
 		Enemies: USSR, Greece
@@ -588,15 +589,6 @@ Actors:
 	Weapcam: waypoint
 		Location: 76,94
 		Owner: Neutral
-	TechCam1: waypoint
-		Location: 69,83
-		Owner: Neutral
-	TechCam2: waypoint
-		Location: 94,94
-		Owner: Neutral
-	TechCam3: waypoint
-		Owner: Neutral
-		Location: 94,109
 	AlliedEntry1: waypoint
 		Location: 19,61
 		Owner: Neutral
@@ -630,7 +622,7 @@ Actors:
 	Refinery: proc
 		Location: 81,90
 		Owner: USSR
-	Radar: dome
+	RadarDome: dome
 		Location: 20,83
 		Owner: USSR
 	WeaponMeetPoint: waypoint

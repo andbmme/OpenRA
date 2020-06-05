@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -7,9 +7,9 @@
    information, see COPYING.
 ]]
 
-Base = 
+Base =
 {
-	Harkonnen = { HRefinery, SHeavyFactory, SLightFactory, HGunTurret1, HGunTurret2, HGunTurret3, HGunTurret4, HGunTurret5, SBarracks, HPower1, HPower2, HPower3, HPower4 },
+	Harkonnen = { HConyard, HRefinery, HHeavyFactory, HLightFactory, HGunTurret1, HGunTurret2, HGunTurret3, HGunTurret4, HGunTurret5, HBarracks, HPower1, HPower2, HPower3, HPower4 },
 	Smugglers = { SOutpost, SHeavyFactory, SLightFactory, SGunTurret1, SGunTurret2, SGunTurret3, SGunTurret4, SBarracks, SPower1, SPower2, SPower3 }
 }
 
@@ -27,7 +27,7 @@ HarkonnenAttackDelay =
 	hard = DateTime.Minutes(1) + DateTime.Seconds(30)
 }
 
-InitialReinforcements = 
+InitialReinforcements =
 {
 	Harkonnen = { "combat_tank_h", "combat_tank_h", "trike", "quad" },
 	Smugglers = { "light_inf", "light_inf", "light_inf", "light_inf", "trooper", "trooper", "trooper" }
@@ -111,6 +111,8 @@ WorldLoaded = function()
 	DefendOutpost = smuggler.AddPrimaryObjective("Don't let the outpost to be captured or destroyed.")
 	CaptureOutpost = player.AddPrimaryObjective("Capture the Smuggler Outpost.")
 	KillHarkonnen = player.AddSecondaryObjective("Destroy the Harkonnen.")
+
+	SOutpost.GrantCondition("modified")
 
 	Camera.Position = OConyard.CenterPosition
 	HarkonnenAttackLocation = OConyard.Location

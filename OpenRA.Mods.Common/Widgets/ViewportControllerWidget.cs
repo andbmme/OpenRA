@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,17 +24,21 @@ namespace OpenRA.Mods.Common.Widgets
 
 	public class ViewportControllerWidget : Widget
 	{
-		readonly ResourceLayer resourceLayer;
+		readonly ModData modData;
+		readonly IEnumerable<ResourceRenderer> resourceRenderers;
 
-		public readonly NamedHotkey ScrollUpKey = new NamedHotkey();
-		public readonly NamedHotkey ScrollDownKey = new NamedHotkey();
-		public readonly NamedHotkey ScrollLeftKey = new NamedHotkey();
-		public readonly NamedHotkey ScrollRightKey = new NamedHotkey();
+		public readonly HotkeyReference ZoomInKey = new HotkeyReference();
+		public readonly HotkeyReference ZoomOutKey = new HotkeyReference();
 
-		public readonly NamedHotkey JumpToTopEdgeKey = new NamedHotkey();
-		public readonly NamedHotkey JumpToBottomEdgeKey = new NamedHotkey();
-		public readonly NamedHotkey JumpToLeftEdgeKey = new NamedHotkey();
-		public readonly NamedHotkey JumpToRightEdgeKey = new NamedHotkey();
+		public readonly HotkeyReference ScrollUpKey = new HotkeyReference();
+		public readonly HotkeyReference ScrollDownKey = new HotkeyReference();
+		public readonly HotkeyReference ScrollLeftKey = new HotkeyReference();
+		public readonly HotkeyReference ScrollRightKey = new HotkeyReference();
+
+		public readonly HotkeyReference JumpToTopEdgeKey = new HotkeyReference();
+		public readonly HotkeyReference JumpToBottomEdgeKey = new HotkeyReference();
+		public readonly HotkeyReference JumpToLeftEdgeKey = new HotkeyReference();
+		public readonly HotkeyReference JumpToRightEdgeKey = new HotkeyReference();
 
 		// Note: LinterHotkeyNames assumes that these are disabled by default
 		public readonly string BookmarkSaveKeyPrefix = null;
@@ -82,18 +86,19 @@ namespace OpenRA.Mods.Common.Widgets
 			{ ScrollDirection.Right, new float2(1, 0) },
 		};
 
-		Lazy<TooltipContainerWidget> tooltipContainer;
+		readonly Lazy<TooltipContainerWidget> tooltipContainer;
+		readonly World world;
+		readonly WorldRenderer worldRenderer;
+
 		int2? joystickScrollStart, joystickScrollEnd;
 		int2? standardScrollStart;
 		bool isStandardScrolling;
 
 		ScrollDirection keyboardDirections;
 		ScrollDirection edgeDirections;
-		World world;
-		WorldRenderer worldRenderer;
 
-		NamedHotkey[] saveBookmarkHotkeys;
-		NamedHotkey[] restoreBookmarkHotkeys;
+		HotkeyReference[] saveBookmarkHotkeys;
+		HotkeyReference[] restoreBookmarkHotkeys;
 		WPos?[] bookmarkPositions;
 
 		[CustomLintableHotkeyNames]
@@ -132,14 +137,15 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		[ObjectCreator.UseCtor]
-		public ViewportControllerWidget(World world, WorldRenderer worldRenderer)
+		public ViewportControllerWidget(ModData modData, World world, WorldRenderer worldRenderer)
 		{
+			this.modData = modData;
 			this.world = world;
 			this.worldRenderer = worldRenderer;
 			tooltipContainer = Exts.Lazy(() =>
 				Ui.Root.Get<TooltipContainerWidget>(TooltipContainer));
 
-			resourceLayer = world.WorldActor.TraitOrDefault<ResourceLayer>();
+			resourceRenderers = world.WorldActor.TraitsImplementing<ResourceRenderer>().ToArray();
 		}
 
 		public override void Initialize(WidgetArgs args)
@@ -147,10 +153,10 @@ namespace OpenRA.Mods.Common.Widgets
 			base.Initialize(args);
 
 			saveBookmarkHotkeys = Exts.MakeArray(BookmarkKeyCount,
-				i => new NamedHotkey(BookmarkSaveKeyPrefix + (i + 1).ToString("D2"), Game.Settings.Keys));
+				i => modData.Hotkeys[BookmarkSaveKeyPrefix + (i + 1).ToString("D2")]);
 
 			restoreBookmarkHotkeys = Exts.MakeArray(BookmarkKeyCount,
-				i => new NamedHotkey(BookmarkRestoreKeyPrefix + (i + 1).ToString("D2"), Game.Settings.Keys));
+				i => modData.Hotkeys[BookmarkRestoreKeyPrefix + (i + 1).ToString("D2")]);
 
 			bookmarkPositions = new WPos?[BookmarkKeyCount];
 		}
@@ -186,7 +192,7 @@ namespace OpenRA.Mods.Common.Widgets
 			else if (!isStandardScrolling)
 			{
 				edgeDirections = ScrollDirection.None;
-				if (Game.Settings.Game.ViewportEdgeScroll && Game.HasInputFocus)
+				if (Game.Settings.Game.ViewportEdgeScroll && Game.Renderer.WindowHasInputFocus)
 					edgeDirections = CheckForDirections();
 
 				if (keyboardDirections != ScrollDirection.None || edgeDirections != ScrollDirection.None)
@@ -216,6 +222,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			TooltipType = WorldTooltipType.None;
 			ActorTooltipExtra = null;
+			var modifiers = Game.GetModifierKeys();
 			var cell = worldRenderer.Viewport.ViewToWorld(Viewport.LastMousePos);
 			if (!world.Map.Contains(cell))
 				return;
@@ -227,13 +234,13 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 
 			var worldPixel = worldRenderer.Viewport.ViewToWorldPx(Viewport.LastMousePos);
-			var underCursor = world.ScreenMap.ActorsAt(worldPixel)
-				.Where(a => a.Info.HasTraitInfo<ITooltipInfo>() && !world.FogObscures(a))
-				.WithHighestSelectionPriority(worldPixel);
+			var underCursor = world.ScreenMap.ActorsAtMouse(worldPixel)
+				.Where(a => a.Actor.Info.HasTraitInfo<ITooltipInfo>() && !world.FogObscures(a.Actor))
+				.WithHighestSelectionPriority(worldPixel, modifiers);
 
 			if (underCursor != null)
 			{
-				ActorTooltip = underCursor.TraitsImplementing<ITooltip>().FirstOrDefault(Exts.IsTraitEnabled);
+				ActorTooltip = underCursor.TraitsImplementing<ITooltip>().FirstEnabledTraitOrDefault();
 				if (ActorTooltip != null)
 				{
 					ActorTooltipExtra = underCursor.TraitsImplementing<IProvideTooltipInfo>().ToArray();
@@ -243,30 +250,31 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 			}
 
-			var frozen = world.ScreenMap.FrozenActorsAt(world.RenderPlayer, worldPixel)
-				.Where(a => a.TooltipInfo != null && a.IsValid)
-				.WithHighestSelectionPriority(worldPixel);
+			var frozen = world.ScreenMap.FrozenActorsAtMouse(world.RenderPlayer, worldPixel)
+				.Where(a => a.TooltipInfo != null && a.IsValid && a.Visible && !a.Hidden)
+				.WithHighestSelectionPriority(worldPixel, modifiers);
 
 			if (frozen != null)
 			{
-				var actor = frozen.Actor;
-				if (actor != null && actor.TraitsImplementing<IVisibilityModifier>().All(t => t.IsVisible(actor, world.RenderPlayer)))
-				{
-					FrozenActorTooltip = frozen;
-					if (frozen.Actor != null)
-						ActorTooltipExtra = frozen.Actor.TraitsImplementing<IProvideTooltipInfo>().ToArray();
-					TooltipType = WorldTooltipType.FrozenActor;
-					return;
-				}
+				FrozenActorTooltip = frozen;
+
+				// HACK: This leaks the tooltip state through the fog
+				// This will cause issues for any downstream mods that use IProvideTooltipInfo on enemy actors
+				if (frozen.Actor != null)
+					ActorTooltipExtra = frozen.Actor.TraitsImplementing<IProvideTooltipInfo>().ToArray();
+
+				TooltipType = WorldTooltipType.FrozenActor;
+				return;
 			}
 
-			if (resourceLayer != null)
+			foreach (var resourceRenderer in resourceRenderers)
 			{
-				var resource = resourceLayer.GetRenderedResource(cell);
+				var resource = resourceRenderer.GetRenderedResourceType(cell);
 				if (resource != null)
 				{
 					TooltipType = WorldTooltipType.Resource;
 					ResourceTooltip = resource;
+					break;
 				}
 			}
 		}
@@ -303,47 +311,17 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
-		bool IsZoomAllowed(float zoom)
-		{
-			return world.IsGameOver || zoom >= 1.0f || world.IsReplay || world.LocalPlayer == null || world.LocalPlayer.Spectating;
-		}
-
-		void Zoom(int direction)
-		{
-			var zoomSteps = worldRenderer.Viewport.AvailableZoomSteps;
-			var currentZoom = worldRenderer.Viewport.Zoom;
-			var nextIndex = zoomSteps.IndexOf(currentZoom);
-
-			if (direction < 0)
-				nextIndex++;
-			else
-				nextIndex--;
-
-			if (nextIndex < 0 || nextIndex >= zoomSteps.Count())
-				return;
-
-			var zoom = zoomSteps.ElementAt(nextIndex);
-			if (!IsZoomAllowed(zoom))
-				return;
-
-			worldRenderer.Viewport.Zoom = zoom;
-		}
-
 		public override bool HandleMouseInput(MouseInput mi)
 		{
-			if (mi.Event == MouseInputEvent.Scroll &&
-				Game.Settings.Game.AllowZoom && mi.Modifiers.HasModifier(Game.Settings.Game.ZoomModifier))
+			if (mi.Event == MouseInputEvent.Scroll && mi.Modifiers.HasModifier(Game.Settings.Game.ZoomModifier))
 			{
-				Zoom(mi.ScrollDelta);
+				worldRenderer.Viewport.AdjustZoom(mi.Delta.Y * Game.Settings.Game.ZoomSpeed);
 				return true;
 			}
 
-			var scrollType = MouseScrollType.Disabled;
-
-			if (mi.Button.HasFlag(MouseButton.Middle) || mi.Button.HasFlag(MouseButton.Left | MouseButton.Right))
-				scrollType = Game.Settings.Game.MiddleMouseScroll;
-			else if (mi.Button.HasFlag(MouseButton.Right))
-				scrollType = Game.Settings.Game.RightMouseScroll;
+			var gs = Game.Settings.Game;
+			var scrollButton = gs.UseClassicMouseStyle ^ gs.UseAlternateScrollButton ? MouseButton.Right : MouseButton.Middle;
+			var scrollType = mi.Button.HasFlag(scrollButton) ? gs.MouseScroll : MouseScrollType.Disabled;
 
 			if (scrollType == MouseScrollType.Disabled)
 				return IsJoystickScrolling || isStandardScrolling;
@@ -427,7 +405,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var key = Hotkey.FromKeyInput(e);
 
-			Func<NamedHotkey, ScrollDirection, bool> handleMapScrollKey = (hotkey, scrollDirection) =>
+			Func<HotkeyReference, ScrollDirection, bool> handleMapScrollKey = (hotkey, scrollDirection) =>
 			{
 				var isHotkey = false;
 				var keyValue = hotkey.GetValue();
@@ -447,25 +425,37 @@ namespace OpenRA.Mods.Common.Widgets
 			if (e.Event != KeyInputEvent.Down)
 				return false;
 
-			if (key == JumpToTopEdgeKey.GetValue())
+			if (ZoomInKey.IsActivatedBy(e))
+			{
+				worldRenderer.Viewport.AdjustZoom(0.25f);
+				return true;
+			}
+
+			if (ZoomOutKey.IsActivatedBy(e))
+			{
+				worldRenderer.Viewport.AdjustZoom(-0.25f);
+				return true;
+			}
+
+			if (JumpToTopEdgeKey.IsActivatedBy(e))
 			{
 				worldRenderer.Viewport.Center(new WPos(worldRenderer.Viewport.CenterPosition.X, 0, 0));
 				return true;
 			}
 
-			if (key == JumpToBottomEdgeKey.GetValue())
+			if (JumpToBottomEdgeKey.IsActivatedBy(e))
 			{
 				worldRenderer.Viewport.Center(new WPos(worldRenderer.Viewport.CenterPosition.X, worldRenderer.World.Map.ProjectedBottomRight.Y, 0));
 				return true;
 			}
 
-			if (key == JumpToLeftEdgeKey.GetValue())
+			if (JumpToLeftEdgeKey.IsActivatedBy(e))
 			{
 				worldRenderer.Viewport.Center(new WPos(0, worldRenderer.Viewport.CenterPosition.Y, 0));
 				return true;
 			}
 
-			if (key == JumpToRightEdgeKey.GetValue())
+			if (JumpToRightEdgeKey.IsActivatedBy(e))
 			{
 				worldRenderer.Viewport.Center(new WPos(worldRenderer.World.Map.ProjectedBottomRight.X, worldRenderer.Viewport.CenterPosition.Y, 0));
 				return true;
@@ -473,7 +463,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			for (var i = 0; i < saveBookmarkHotkeys.Length; i++)
 			{
-				if (key == saveBookmarkHotkeys[i].GetValue())
+				if (saveBookmarkHotkeys[i].IsActivatedBy(e))
 				{
 					bookmarkPositions[i] = worldRenderer.Viewport.CenterPosition;
 					return true;
@@ -482,7 +472,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 			for (var i = 0; i < restoreBookmarkHotkeys.Length; i++)
 			{
-				if (key == restoreBookmarkHotkeys[i].GetValue())
+				if (restoreBookmarkHotkeys[i].IsActivatedBy(e))
 				{
 					var bookmark = bookmarkPositions[i];
 					if (bookmark.HasValue)
@@ -493,7 +483,7 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 			}
 
-			return false;
+			return world.OrderGenerator.HandleKeyPress(e);
 		}
 
 		ScrollDirection CheckForDirections()

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,10 +11,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -34,8 +34,11 @@ namespace OpenRA.Mods.Common.Traits
 		Dock = 256
 	}
 
+	// Type tag for cloaktypes
+	public class CloakType { }
+
 	[Desc("This unit can cloak and uncloak in specific situations.")]
-	public class CloakInfo : ConditionalTraitInfo
+	public class CloakInfo : PausableConditionalTraitInfo
 	{
 		[Desc("Measured in game ticks.")]
 		public readonly int InitialDelay = 10;
@@ -50,10 +53,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CloakSound = null;
 		public readonly string UncloakSound = null;
 
-		[PaletteReference("IsPlayerPalette")] public readonly string Palette = "cloak";
+		[PaletteReference("IsPlayerPalette")]
+		public readonly string Palette = "cloak";
 		public readonly bool IsPlayerPalette = false;
 
-		public readonly HashSet<string> CloakTypes = new HashSet<string> { "Cloak" };
+		public readonly BitSet<CloakType> CloakTypes = new BitSet<CloakType>("Cloak");
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while cloaked.")]
@@ -62,18 +66,19 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new Cloak(this); }
 	}
 
-	public class Cloak : ConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
+	public class Cloak : PausableConditionalTrait<CloakInfo>, IRenderModifier, INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration,
 		INotifyAttack, ITick, IVisibilityModifier, IRadarColorModifier, INotifyCreated, INotifyHarvesterAction
 	{
-		[Sync] int remainingTime;
+		[Sync]
+		int remainingTime;
+
 		bool isDocking;
-		ConditionManager conditionManager;
 		Cloak[] otherCloaks;
 
 		CPos? lastPos;
 		bool wasCloaked = false;
 		bool firstTick = true;
-		int cloakedToken = ConditionManager.InvalidConditionToken;
+		int cloakedToken = Actor.InvalidConditionToken;
 
 		public Cloak(CloakInfo info)
 			: base(info)
@@ -83,7 +88,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
-			conditionManager = self.TraitOrDefault<ConditionManager>();
 			otherCloaks = self.TraitsImplementing<Cloak>()
 				.Where(c => c != this)
 				.ToArray();
@@ -91,14 +95,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (Cloaked)
 			{
 				wasCloaked = true;
-				if (conditionManager != null && cloakedToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(Info.CloakedCondition))
-					cloakedToken = conditionManager.GrantCondition(self, Info.CloakedCondition);
+				if (cloakedToken == Actor.InvalidConditionToken)
+					cloakedToken = self.GrantCondition(Info.CloakedCondition);
 			}
 
 			base.Created(self);
 		}
 
-		public bool Cloaked { get { return !IsTraitDisabled && remainingTime <= 0; } }
+		public bool Cloaked { get { return !IsTraitDisabled && !IsTraitPaused && remainingTime <= 0; } }
 
 		public void Uncloak() { Uncloak(Info.CloakDelay); }
 
@@ -122,7 +126,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
-			if (remainingTime > 0 || IsTraitDisabled)
+			if (remainingTime > 0 || IsTraitDisabled || IsTraitPaused)
 				return r;
 
 			if (Cloaked && IsVisible(self, self.World.RenderPlayer))
@@ -137,15 +141,17 @@ namespace OpenRA.Mods.Common.Traits
 				return SpriteRenderable.None;
 		}
 
+		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)
+		{
+			return bounds;
+		}
+
 		void ITick.Tick(Actor self)
 		{
-			if (!IsTraitDisabled)
+			if (!IsTraitDisabled && !IsTraitPaused)
 			{
 				if (remainingTime > 0 && !isDocking)
 					remainingTime--;
-
-				if (self.IsDisabled())
-					Uncloak();
 
 				if (Info.UncloakOn.HasFlag(UncloakType.Move) && (lastPos == null || lastPos.Value != self.Location))
 				{
@@ -157,8 +163,8 @@ namespace OpenRA.Mods.Common.Traits
 			var isCloaked = Cloaked;
 			if (isCloaked && !wasCloaked)
 			{
-				if (conditionManager != null && cloakedToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(Info.CloakedCondition))
-					cloakedToken = conditionManager.GrantCondition(self, Info.CloakedCondition);
+				if (cloakedToken == Actor.InvalidConditionToken)
+					cloakedToken = self.GrantCondition(Info.CloakedCondition);
 
 				// Sounds shouldn't play if the actor starts cloaked
 				if (!(firstTick && Info.InitialDelay == 0) && !otherCloaks.Any(a => a.Cloaked))
@@ -166,8 +172,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (!isCloaked && wasCloaked)
 			{
-				if (cloakedToken != ConditionManager.InvalidConditionToken)
-					cloakedToken = conditionManager.RevokeCondition(self, cloakedToken);
+				if (cloakedToken != Actor.InvalidConditionToken)
+					cloakedToken = self.RevokeCondition(cloakedToken);
 
 				if (!(firstTick && Info.InitialDelay == 0) && !otherCloaks.Any(a => a.Cloaked))
 					Game.Sound.Play(SoundType.World, Info.UncloakSound, self.CenterPosition);
@@ -177,6 +183,11 @@ namespace OpenRA.Mods.Common.Traits
 			firstTick = false;
 		}
 
+		protected override void TraitEnabled(Actor self)
+		{
+			remainingTime = Info.InitialDelay;
+		}
+
 		protected override void TraitDisabled(Actor self) { Uncloak(); }
 
 		public bool IsVisible(Actor self, Player viewer)
@@ -184,9 +195,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Cloaked || self.Owner.IsAlliedWith(viewer))
 				return true;
 
-			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => !a.Trait.IsTraitDisabled && a.Actor.Owner.IsAlliedWith(viewer)
+			return self.World.ActorsWithTrait<DetectCloaked>().Any(a => a.Actor.Owner.IsAlliedWith(viewer)
 				&& Info.CloakTypes.Overlaps(a.Trait.Info.CloakTypes)
-				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Info.Range.LengthSquared);
+				&& (self.CenterPosition - a.Actor.CenterPosition).LengthSquared <= a.Trait.Range.LengthSquared);
 		}
 
 		Color IRadarColorModifier.RadarColorOverride(Actor self, Color color)
@@ -197,9 +208,9 @@ namespace OpenRA.Mods.Common.Traits
 			return color;
 		}
 
-		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell, Activity next) { }
+		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell) { }
 
-		void INotifyHarvesterAction.MovingToRefinery(Actor self, CPos targetCell, Activity next) { }
+		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor refineryActor) { }
 
 		void INotifyHarvesterAction.MovementCancelled(Actor self) { }
 

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Render;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
@@ -26,16 +25,15 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new DisguiseTooltip(init.Self, this); }
 	}
 
-	class DisguiseTooltip : ITooltip
+	class DisguiseTooltip : ConditionalTrait<DisguiseTooltipInfo>, ITooltip
 	{
 		readonly Actor self;
 		readonly Disguise disguise;
-		TooltipInfo info;
 
-		public DisguiseTooltip(Actor self, TooltipInfo info)
+		public DisguiseTooltip(Actor self, DisguiseTooltipInfo info)
+			: base(info)
 		{
 			this.self = self;
-			this.info = info;
 			disguise = self.Trait<Disguise>();
 		}
 
@@ -43,7 +41,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			get
 			{
-				return disguise.Disguised ? disguise.AsTooltipInfo : info;
+				return disguise.Disguised ? disguise.AsTooltipInfo : Info;
 			}
 		}
 
@@ -72,9 +70,10 @@ namespace OpenRA.Mods.Cnc.Traits
 	}
 
 	[Desc("Provides access to the disguise command, which makes the actor appear to be another player's actor.")]
-	class DisguiseInfo : ITraitInfo
+	class DisguiseInfo : TraitInfo
 	{
-		[VoiceReference] public readonly string Voice = "Action";
+		[VoiceReference]
+		public readonly string Voice = "Action";
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while disguised.")]
@@ -84,7 +83,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public readonly Stance ValidStances = Stance.Ally | Stance.Neutral | Stance.Enemy;
 
 		[Desc("Target types of actors that this actor disguise as.")]
-		public readonly HashSet<string> TargetTypes = new HashSet<string> { "Disguise" };
+		public readonly BitSet<TargetableType> TargetTypes = new BitSet<TargetableType>("Disguise");
 
 		[Desc("Triggers which cause the actor to drop it's disguise. Possible values: None, Attack, Damaged,",
 			"Unload, Infiltrate, Demolish, Move.")]
@@ -94,13 +93,16 @@ namespace OpenRA.Mods.Cnc.Traits
 			"A dictionary of [actor id]: [condition].")]
 		public readonly Dictionary<string, string> DisguisedAsConditions = new Dictionary<string, string>();
 
+		[Desc("Cursor to display when hovering over a valid actor to disguise as.")]
+		public readonly string Cursor = "ability";
+
 		[GrantedConditionReference]
 		public IEnumerable<string> LinterConditions { get { return DisguisedAsConditions.Values; } }
 
-		public object Create(ActorInitializer init) { return new Disguise(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new Disguise(init.Self, this); }
 	}
 
-	class Disguise : INotifyCreated, IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, IRadarColorModifier, INotifyAttack,
+	class Disguise : IEffectiveOwner, IIssueOrder, IResolveOrder, IOrderVoice, IRadarColorModifier, INotifyAttack,
 		INotifyDamage, INotifyUnload, INotifyDemolition, INotifyInfiltration, ITick
 	{
 		public ActorInfo AsActor { get; private set; }
@@ -113,20 +115,16 @@ namespace OpenRA.Mods.Cnc.Traits
 		readonly Actor self;
 		readonly DisguiseInfo info;
 
-		ConditionManager conditionManager;
-		int disguisedToken = ConditionManager.InvalidConditionToken;
-		int disguisedAsToken = ConditionManager.InvalidConditionToken;
+		int disguisedToken = Actor.InvalidConditionToken;
+		int disguisedAsToken = Actor.InvalidConditionToken;
 		CPos? lastPos;
 
 		public Disguise(Actor self, DisguiseInfo info)
 		{
 			this.self = self;
 			this.info = info;
-		}
 
-		void INotifyCreated.Created(Actor self)
-		{
-			conditionManager = self.TraitOrDefault<ConditionManager>();
+			AsActor = self.Info;
 		}
 
 		IEnumerable<IOrderTargeter> IIssueOrder.Orders
@@ -149,8 +147,12 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			if (order.OrderString == "Disguise")
 			{
-				var target = order.TargetActor != self && order.TargetActor.IsInWorld ? order.TargetActor : null;
-				DisguiseAs(target);
+				var target = order.Target;
+				if (target.Type == TargetType.Actor)
+					DisguiseAs((target.Actor != self && target.Actor.IsInWorld) ? target.Actor : null);
+
+				if (target.Type == TargetType.FrozenActor)
+					DisguiseAs(target.FrozenActor.Info, target.FrozenActor.Owner);
 			}
 		}
 
@@ -164,7 +166,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!Disguised || self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return color;
 
-			return color = Game.Settings.Game.UsePlayerStanceColors ? AsPlayer.PlayerStanceColor(self) : AsPlayer.Color.RGB;
+			return color = Game.Settings.Game.UsePlayerStanceColors ? AsPlayer.PlayerStanceColor(self) : AsPlayer.Color;
 		}
 
 		public void DisguiseAs(Actor target)
@@ -220,25 +222,22 @@ namespace OpenRA.Mods.Cnc.Traits
 			foreach (var t in self.TraitsImplementing<INotifyEffectiveOwnerChanged>())
 				t.OnEffectiveOwnerChanged(self, oldEffectiveOwner, AsPlayer);
 
-			if (conditionManager != null)
+			if (Disguised != oldDisguiseSetting)
 			{
-				if (Disguised != oldDisguiseSetting)
-				{
-					if (Disguised && disguisedToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(info.DisguisedCondition))
-						disguisedToken = conditionManager.GrantCondition(self, info.DisguisedCondition);
-					else if (!Disguised && disguisedToken != ConditionManager.InvalidConditionToken)
-						disguisedToken = conditionManager.RevokeCondition(self, disguisedToken);
-				}
+				if (Disguised && disguisedToken == Actor.InvalidConditionToken)
+					disguisedToken = self.GrantCondition(info.DisguisedCondition);
+				else if (!Disguised && disguisedToken != Actor.InvalidConditionToken)
+					disguisedToken = self.RevokeCondition(disguisedToken);
+			}
 
-				if (AsActor != oldEffectiveActor)
-				{
-					if (disguisedAsToken != ConditionManager.InvalidConditionToken)
-						disguisedAsToken = conditionManager.RevokeCondition(self, disguisedAsToken);
+			if (AsActor != oldEffectiveActor)
+			{
+				if (disguisedAsToken != Actor.InvalidConditionToken)
+					disguisedAsToken = self.RevokeCondition(disguisedAsToken);
 
-					string disguisedAsCondition;
-					if (info.DisguisedAsConditions.TryGetValue(AsActor.Name, out disguisedAsCondition))
-						disguisedAsToken = conditionManager.GrantCondition(self, disguisedAsCondition);
-				}
+				string disguisedAsCondition;
+				if (info.DisguisedAsConditions.TryGetValue(AsActor.Name, out disguisedAsCondition))
+					disguisedAsToken = self.GrantCondition(disguisedAsCondition);
 			}
 		}
 
@@ -288,7 +287,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		readonly DisguiseInfo info;
 
 		public DisguiseOrderTargeter(DisguiseInfo info)
-			: base("Disguise", 7, "ability", true, true)
+			: base("Disguise", 7, info.Cursor, true, true)
 		{
 			this.info = info;
 			ForceAttack = false;
@@ -311,7 +310,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!info.ValidStances.HasStance(stance))
 				return false;
 
-			return info.TargetTypes.Overlaps(target.Info.TraitInfos<ITargetableInfo>().SelectMany(ti => ti.GetTargetTypes()));
+			return info.TargetTypes.Overlaps(target.Info.GetAllTargetTypes());
 		}
 	}
 }

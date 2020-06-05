@@ -6,8 +6,10 @@ BOAT:
 		Cost: 300
 	Tooltip:
 		Name: Gunboat
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
-		HP: 700
+		HP: 70000
 	Armor:
 		Type: Heavy
 	TDGunboat:
@@ -29,11 +31,10 @@ BOAT:
 		Sequence: left # Just a work-around to avoid crash
 	Selectable:
 		Bounds: 42,24
+		DecorationBounds: 42,24
 	AutoTarget:
 		AllowMovement: false
 	RejectsOrders:
-	SelectionDecorations:
-		VisualBounds: 42,24
 	GrantConditionOnDamageState@HEAVY:
 		Condition: heavy-damage
 		ValidDamageStates: Heavy
@@ -49,6 +50,7 @@ BOAT:
 
 LST:
 	Inherits: ^Ship
+	Inherits@TRANSPORT: ^Transport
 	Valued:
 		Cost: 300
 	Tooltip:
@@ -58,27 +60,22 @@ LST:
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 	Mobile:
-		Crushes: crate
-		TerrainSpeeds:
-			Clear: 100
-			Rough: 100
-			Road: 100
-			Water: 100
-			Tiberium: 100
-			BlueTiberium: 100
-			Beach: 100
-			River: 100
+		Locomotor: lcraft
 		InitialFacing: 0
 		TurnSpeed: 4
 		Speed: 142
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	Health:
-		HP: 400
+		HP: 40000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
 		Range: 7c0
+	-BodyOrientation:
+	ClassicFacingBodyOrientation:
 	WithFacingSpriteBody:
+	Selectable:
+		Bounds: 48,48
 	WithRoof:
 	WithCargo:
 		DisplayTypes: Infantry, Vehicle
@@ -86,6 +83,5 @@ LST:
 	Cargo:
 		Types: Infantry, Vehicle
 		MaxWeight: 5
-		PipCount: 5
 		PassengerFacing: 0
 		LoadingCondition: notmobile

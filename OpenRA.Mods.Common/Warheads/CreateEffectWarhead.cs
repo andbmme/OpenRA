@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,24 +9,26 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Warheads
 {
-	public class CreateEffectWarhead : Warhead, IRulesetLoaded<WeaponInfo>
+	public class CreateEffectWarhead : Warhead
 	{
+		[SequenceReference("Image")]
 		[Desc("List of explosion sequences that can be used.")]
-		[SequenceReference("Image")] public readonly string[] Explosions = new string[0];
+		public readonly string[] Explosions = new string[0];
 
 		[Desc("Image containing explosion effect sequence.")]
 		public readonly string Image = "explosion";
 
-		[Desc("Palette to use for explosion effect."), PaletteReference("UsePlayerPalette")]
+		[PaletteReference("UsePlayerPalette")]
+		[Desc("Palette to use for explosion effect.")]
 		public readonly string ExplosionPalette = "effect";
 
 		[Desc("Remap explosion effect to player color, if art supports it.")]
@@ -41,26 +43,15 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Chance of impact sound to play.")]
 		public readonly int ImpactSoundChance = 100;
 
-		[Desc("Consider explosion above this altitude an air explosion.",
-			"If that's the case, this warhead will consider the explosion position to have the 'Air' TargetType (in addition to any nearby actor's TargetTypes).")]
-		public readonly WDist AirThreshold = new WDist(128);
+		[Desc("Whether to consider actors in determining whether the explosion should happen. If false, only terrain will be considered.")]
+		public readonly bool ImpactActors = true;
 
-		[Desc("Scan radius for victims around impact. If set to a negative value (default), it will automatically scale to the largest health shape.",
-			"Custom overrides should not be necessary under normal circumstances.")]
-		public WDist VictimScanRadius = new WDist(-1);
-
-		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
-		{
-			if (VictimScanRadius < WDist.Zero)
-				VictimScanRadius = Util.MinimumRequiredVictimScanRadius(rules);
-		}
-
-		static readonly string[] TargetTypeAir = new string[] { "Air" };
+		static readonly BitSet<TargetableType> TargetTypeAir = new BitSet<TargetableType>("Air");
 
 		public ImpactType GetImpactType(World world, CPos cell, WPos pos, Actor firedBy)
 		{
 			// Matching target actor
-			if (VictimScanRadius > WDist.Zero)
+			if (ImpactActors)
 			{
 				var targetType = GetDirectHitTargetType(world, cell, pos, firedBy, true);
 				if (targetType == ImpactTargetType.ValidActor)
@@ -78,7 +69,7 @@ namespace OpenRA.Mods.Common.Warheads
 
 		public ImpactTargetType GetDirectHitTargetType(World world, CPos cell, WPos pos, Actor firedBy, bool checkTargetValidity = false)
 		{
-			var victims = world.FindActorsInCircle(pos, VictimScanRadius);
+			var victims = world.FindActorsOnCircle(pos, WDist.Zero);
 			var invalidHit = false;
 
 			foreach (var victim in victims)
@@ -86,12 +77,12 @@ namespace OpenRA.Mods.Common.Warheads
 				if (!AffectsParent && victim == firedBy)
 					continue;
 
-				if (!victim.Info.HasTraitInfo<HealthInfo>())
+				if (!victim.Info.HasTraitInfo<IHealthInfo>())
 					continue;
 
 				// If the impact position is within any HitShape, we have a direct hit
 				var activeShapes = victim.TraitsImplementing<HitShape>().Where(Exts.IsTraitEnabled);
-				var directHit = activeShapes.Any(i => i.Info.Type.DistanceFromEdge(pos, victim).Length <= 0);
+				var directHit = activeShapes.Any(i => i.DistanceFromEdge(victim, pos).Length <= 0);
 
 				// If the warhead landed outside the actor's hit-shape(s), we need to skip the rest so it won't be considered an invalidHit
 				if (!directHit)
@@ -108,11 +99,12 @@ namespace OpenRA.Mods.Common.Warheads
 			return invalidHit ? ImpactTargetType.InvalidActor : ImpactTargetType.NoActor;
 		}
 
-		public override void DoImpact(Target target, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, WarheadArgs args)
 		{
-			if (!target.IsValidFor(firedBy))
+			if (target.Type == TargetType.Invalid)
 				return;
 
+			var firedBy = args.SourceActor;
 			var pos = target.CenterPosition;
 			var world = firedBy.World;
 			var targetTile = world.Map.CellContaining(pos);
@@ -121,11 +113,7 @@ namespace OpenRA.Mods.Common.Warheads
 			if ((!world.Map.Contains(targetTile)) || (!isValid))
 				return;
 
-			var palette = ExplosionPalette;
-			if (UsePlayerPalette)
-				palette += firedBy.Owner.InternalName;
-
-			var explosion = Explosions.RandomOrDefault(Game.CosmeticRandom);
+			var explosion = Explosions.RandomOrDefault(world.LocalRandom);
 			if (Image != null && explosion != null)
 			{
 				if (ForceDisplayAtGroundLevel)
@@ -134,11 +122,15 @@ namespace OpenRA.Mods.Common.Warheads
 					pos = new WPos(pos.X, pos.Y, pos.Z - dat.Length);
 				}
 
+				var palette = ExplosionPalette;
+				if (UsePlayerPalette)
+					palette += firedBy.Owner.InternalName;
+
 				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, Image, explosion, palette)));
 			}
 
-			var impactSound = ImpactSounds.RandomOrDefault(Game.CosmeticRandom);
-			if (impactSound != null && Game.CosmeticRandom.Next(0, 100) < ImpactSoundChance)
+			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);
+			if (impactSound != null && world.LocalRandom.Next(0, 100) < ImpactSoundChance)
 				Game.Sound.Play(SoundType.World, impactSound, pos);
 		}
 

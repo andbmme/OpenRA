@@ -1,6 +1,7 @@
 E2:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Buildable:
 		Queue: Infantry
@@ -11,8 +12,10 @@ E2:
 		Cost: 200
 	Tooltip:
 		Name: Disc Thrower
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
-		HP: 150
+		HP: 15000
 	Mobile:
 		Speed: 56
 	Armament:
@@ -33,10 +36,13 @@ E2:
 MEDIC:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Valued:
 		Cost: 600
 	Tooltip:
 		Name: Medic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 50
@@ -49,7 +55,7 @@ MEDIC:
 	Mobile:
 		Speed: 56
 	Health:
-		HP: 125
+		HP: 12500
 	Crushable:
 		CrushSound: squishy2.aud
 	Armament:
@@ -65,18 +71,22 @@ MEDIC:
 	WithInfantryBody:
 		DefaultAttackSequence: heal
 	SelfHealing:
+		Step: 500
 		Delay: 60
 	Passenger:
-		PipType: Red
+		CustomPipType: red
 
 JUMPJET:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
 		Cost: 600
 	Tooltip:
 		Name: Jumpjet Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 70
@@ -86,17 +96,13 @@ JUMPJET:
 		VoiceSet: JumpJet
 	Mobile:
 		Speed: 71
-		Jumpjet: True
-		JumpjetTransitionCost: 100
-		JumpjetCondition: airborne
-		TerrainSpeeds:
-			Jumpjet: 110
+		Locomotor: jumpjet
 	Health:
-		HP: 120
+		HP: 12000
 	Armor:
 		Type: Light
 	Passenger:
-		PipType: Green
+		CustomPipType: green
 	RevealsShroud:
 		Range: 6c0
 	Armament:
@@ -151,12 +157,13 @@ JUMPJET:
 		RequiresCondition: !airborne
 	WithShadow@airborne:
 		RequiresCondition: airborne
+	GrantConditionOnJumpjetLayer:
+		Condition: airborne
 
 JUMPJET.Husk:
 	RenderSprites:
 	BodyOrientation:
 		QuantizedFacings: 1
-	Aircraft:
 	HiddenUnderFog:
 		Type: GroundPosition
 	ScriptTriggers:
@@ -171,12 +178,10 @@ JUMPJET.Husk:
 		VTOL: true
 	RenderSprites:
 		Image: jumpjet
-	AutoSelectionSize:
 	WithSpriteBody:
 		Sequence: die-falling
 	Health:
 	HitShape:
-	ConditionManager:
 	GrantConditionOnTerrain:
 		TerrainTypes: Water
 		Condition: water-death
@@ -186,18 +191,20 @@ JUMPJET.Husk:
 	WithDeathAnimation@SPLASH:
 		RequiresCondition: water-death
 		FallbackSequence: die-splash
-	EditorTilesetFilter:
-		Categories: Husk
+	Interactable:
 
 GHOST:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@2: ^HealsOnTiberium
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
 		Cost: 1750
 	Tooltip:
 		Name: Ghost Stalker
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 90
@@ -211,7 +218,7 @@ GHOST:
 	Mobile:
 		Speed: 56
 	Health:
-		HP: 200
+		HP: 20000
 	Passenger:
 	RevealsShroud:
 		Range: 6c0

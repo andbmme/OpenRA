@@ -26,6 +26,7 @@ Players:
 		Color: F5D378
 		Allies: Outpost
 		Enemies: Nod
+		Bot: campaign
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
@@ -36,18 +37,21 @@ Players:
 		NonCombatant: True
 		Faction: gdi
 		Enemies: Nod
+		Bot: campaign
 	PlayerReference@Outpost:
 		Name: Outpost
 		Faction: gdi
 		Color: F5D378
 		Allies: GDI
 		Enemies: Nod
+		Bot: campaign
 	PlayerReference@Nod:
 		Name: Nod
 		AllowBots: False
 		Playable: True
 		Required: True
 		Faction: nod
+		LockFaction: True
 		LockColor: True
 		Color: FE1100
 		LockSpawn: True
@@ -59,6 +63,7 @@ Players:
 		Faction: nod
 		Color: FE1100
 		Enemies: Nod
+		Bot: campaign
 
 Actors:
 	Actor0: brik
@@ -691,6 +696,9 @@ Actors:
 		Location: 54,6
 		Facing: 92
 		TurretFacing: 92
+	Actor245: moneycrate
+		Location: 5,6
+		Owner: Neutral
 	waypoint27: waypoint
 		Location: 32,32
 		Owner: Neutral

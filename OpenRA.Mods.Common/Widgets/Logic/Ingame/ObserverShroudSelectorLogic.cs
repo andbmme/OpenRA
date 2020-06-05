@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,10 +11,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -26,8 +27,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly IOrderedEnumerable<IGrouping<int, CameraOption>> teams;
 		readonly bool limitViews;
 
-		readonly NamedHotkey combinedViewKey = new NamedHotkey();
-		readonly NamedHotkey worldViewKey = new NamedHotkey();
+		readonly HotkeyReference combinedViewKey = new HotkeyReference();
+		readonly HotkeyReference worldViewKey = new HotkeyReference();
+
+		readonly World world;
 
 		CameraOption selected;
 
@@ -44,7 +47,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				Player = p;
 				Label = p.PlayerName;
-				Color = p.Color.RGB;
+				Color = p.Color;
 				Faction = p.Faction.InternalName;
 				IsSelected = () => p.World.RenderPlayer == p;
 				OnClick = () => { p.World.RenderPlayer = p; logic.selected = this; p.World.Selection.Clear(); };
@@ -62,15 +65,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		[ObjectCreator.UseCtor]
-		public ObserverShroudSelectorLogic(Widget widget, World world, Dictionary<string, MiniYaml> logicArgs)
+		public ObserverShroudSelectorLogic(Widget widget, ModData modData, World world, WorldRenderer worldRenderer, Dictionary<string, MiniYaml> logicArgs)
 		{
+			this.world = world;
+
 			MiniYaml yaml;
-			var ks = Game.Settings.Keys;
 			if (logicArgs.TryGetValue("CombinedViewKey", out yaml))
-				combinedViewKey = new NamedHotkey(yaml.Value, ks);
+				combinedViewKey = modData.Hotkeys[yaml.Value];
 
 			if (logicArgs.TryGetValue("WorldViewKey", out yaml))
-				worldViewKey = new NamedHotkey(yaml.Value, ks);
+				worldViewKey = modData.Hotkeys[yaml.Value];
 
 			limitViews = world.Map.Visibility.HasFlag(MapVisibility.MissionSelector);
 
@@ -142,14 +146,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			selected = limitViews ? groups.First().Value.First() : world.WorldActor.Owner.Shroud.ExploreMapEnabled ? combined : disableShroud;
 			selected.OnClick();
+
+			// Enable zooming out to fractional zoom levels
+			worldRenderer.Viewport.UnlockMinimumZoom(0.5f);
 		}
 
 		public bool HandleKeyPress(KeyInput e)
 		{
 			if (e.Event == KeyInputEvent.Down && !e.IsRepeat)
 			{
-				var h = Hotkey.FromKeyInput(e);
-				if (h == combinedViewKey.GetValue() && !limitViews)
+				if (combinedViewKey.IsActivatedBy(e) && !limitViews)
 				{
 					selected = combined;
 					selected.OnClick();
@@ -157,7 +163,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return true;
 				}
 
-				if (h == worldViewKey.GetValue() && !limitViews)
+				if (worldViewKey.IsActivatedBy(e) && !limitViews)
 				{
 					selected = disableShroud;
 					selected.OnClick();
@@ -183,6 +189,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			return false;
+		}
+
+		public override void Tick()
+		{
+			// Fix the selector if something else has changed the render player
+			if (selected != null && world.RenderPlayer != selected.Player)
+			{
+				if (combined.Player == world.RenderPlayer)
+					combined.OnClick();
+				else if (disableShroud.Player == world.RenderPlayer)
+					disableShroud.OnClick();
+				else
+					foreach (var group in teams)
+						foreach (var option in group)
+							if (option.Player == world.RenderPlayer)
+								option.OnClick();
+			}
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,13 +11,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using OpenRA.FileSystem;
+using OpenRA.Mods.Cnc.FileFormats;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.FileFormats;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.UtilityCommands
@@ -70,6 +71,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			{ 0x48, "palet03" },
 			{ 0x49, "palet04" },
 
+			// Bridges
 			{ 0x4A, "lobrdg_b" }, // lobrdg01
 			{ 0x4B, "lobrdg_b" }, // lobrdg02
 			{ 0x4C, "lobrdg_b" }, // lobrdg03
@@ -99,11 +101,13 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			{ 0x64, "lobrdg_b_d" }, // lobrdg27
 			{ 0x65, "lobrdg_a_d" }, // lobrdg28
 
+			// Ramps
 			{ 0x7A, "lobrdg_r_se" }, // lobrdg1
 			{ 0x7B, "lobrdg_r_nw" }, // lobrdg2
 			{ 0x7C, "lobrdg_r_ne" }, // lobrdg3
 			{ 0x7D, "lobrdg_r_sw" }, // lobrdg4
 
+			// Other
 			{ 0xA7, "veinhole" },
 			{ 0xA8, "srock01" },
 			{ 0xA9, "srock02" },
@@ -162,12 +166,9 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			{ 0x4B, DamageState.Undamaged },
 			{ 0x4C, DamageState.Undamaged },
 			{ 0x4D, DamageState.Undamaged },
-
 			{ 0x4E, DamageState.Heavy },
 			{ 0x4F, DamageState.Heavy },
-
 			{ 0x50, DamageState.Heavy },
-
 			{ 0x51, DamageState.Critical },
 			{ 0x52, DamageState.Critical },
 
@@ -176,12 +177,9 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			{ 0x54, DamageState.Undamaged },
 			{ 0x55, DamageState.Undamaged },
 			{ 0x56, DamageState.Undamaged },
-
 			{ 0x57, DamageState.Heavy },
 			{ 0x58, DamageState.Heavy },
-
 			{ 0x59, DamageState.Heavy },
-
 			{ 0x5A, DamageState.Critical },
 			{ 0x5B, DamageState.Critical },
 
@@ -201,7 +199,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			{ 0x7C, DamageState.Undamaged },
 			{ 0x7D, DamageState.Undamaged },
 
-			// actually dead, placeholders for resurrection
+			// Actually dead, placeholders for resurrection
 			{ 0x64, DamageState.Undamaged },
 			{ 0x65, DamageState.Undamaged },
 		};
@@ -209,11 +207,19 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 		static readonly Dictionary<byte, byte[]> ResourceFromOverlay = new Dictionary<byte, byte[]>()
 		{
 			// "tib" - Regular Tiberium
-			{ 0x01, new byte[] { 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
-					0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79 } },
+			{
+				0x01, new byte[]
+				{
+					0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
+					0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79
+				}
+			},
 
 			// "btib" - Blue Tiberium
-			{ 0x02, new byte[] { 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
+			{
+				0x02, new byte[]
+				{
+					0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
 
 					// Should be "tib2"
 					0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
@@ -221,7 +227,9 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 
 					// Should be "tib3"
 					0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C,
-					0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6 } },
+					0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6
+				}
+			},
 
 			// Veins
 			{ 0x03, new byte[] { 0x7E } }
@@ -313,7 +321,7 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 			var tileset = Game.ModData.DefaultTileSets[map.Tileset];
 			var mapSection = file.GetSection("IsoMapPack5");
 
-			var data = Convert.FromBase64String(mapSection.Aggregate(string.Empty, (a, b) => a + b.Value));
+			var data = Convert.FromBase64String(string.Concat(mapSection.Select(kvp => kvp.Value)));
 			int cells = (fullSize.X * 2 - 1) * fullSize.Y;
 			int lzoPackSize = cells * 11 + 4; // last 4 bytes contains a lzo pack header saying no more data is left
 			var isoMapPack = new byte[lzoPackSize];
@@ -349,13 +357,13 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 		static void ReadOverlay(Map map, IniFile file, int2 fullSize)
 		{
 			var overlaySection = file.GetSection("OverlayPack");
-			var overlayCompressed = Convert.FromBase64String(overlaySection.Aggregate(string.Empty, (a, b) => a + b.Value));
+			var overlayCompressed = Convert.FromBase64String(string.Concat(overlaySection.Select(kvp => kvp.Value)));
 			var overlayPack = new byte[1 << 18];
 			var temp = new byte[1 << 18];
 			UnpackLCW(overlayCompressed, overlayPack, temp);
 
 			var overlayDataSection = file.GetSection("OverlayDataPack");
-			var overlayDataCompressed = Convert.FromBase64String(overlayDataSection.Aggregate(string.Empty, (a, b) => a + b.Value));
+			var overlayDataCompressed = Convert.FromBase64String(string.Concat(overlayDataSection.Select(kvp => kvp.Value)));
 			var overlayDataPack = new byte[1 << 18];
 			UnpackLCW(overlayDataCompressed, overlayDataPack, temp);
 
@@ -527,10 +535,14 @@ namespace OpenRA.Mods.Cnc.UtilityCommands
 				var ar = new ActorReference(name)
 				{
 					new LocationInit(cell),
-					new OwnerInit("Neutral"),
-					new HealthInit(100 * health / 256),
-					new FacingInit(facing),
+					new OwnerInit("Neutral")
 				};
+
+				if (health != 256)
+					ar.Add(new HealthInit(100 * health / 256));
+
+				if (facing != 96)
+					ar.Add(new FacingInit(facing));
 
 				if (isDeployed)
 					ar.Add(new DeployStateInit(DeployState.Deployed));

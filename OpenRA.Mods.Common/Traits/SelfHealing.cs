@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,13 +9,13 @@
  */
 #endregion
 
-using System.Collections.Generic;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Attach this to actors which should be able to regenerate their health points.")]
-	class SelfHealingInfo : ConditionalTraitInfo, Requires<HealthInfo>
+	class SelfHealingInfo : ConditionalTraitInfo, Requires<IHealthInfo>
 	{
 		[Desc("Absolute amount of health points added in each step.")]
 		public readonly int Step = 5;
@@ -32,22 +32,25 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int DamageCooldown = 0;
 
 		[Desc("Apply the selfhealing using these damagetypes.")]
-		public readonly HashSet<string> DamageTypes = new HashSet<string>();
+		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
 
 		public override object Create(ActorInitializer init) { return new SelfHealing(init.Self, this); }
 	}
 
 	class SelfHealing : ConditionalTrait<SelfHealingInfo>, ITick, INotifyDamage
 	{
-		readonly Health health;
+		readonly IHealth health;
 
-		[Sync] int ticks;
-		[Sync] int damageTicks;
+		[Sync]
+		int ticks;
+
+		[Sync]
+		int damageTicks;
 
 		public SelfHealing(Actor self, SelfHealingInfo info)
 			: base(info)
 		{
-			health = self.Trait<Health>();
+			health = self.Trait<IHealth>();
 		}
 
 		void ITick.Tick(Actor self)
@@ -55,7 +58,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.IsDead || IsTraitDisabled)
 				return;
 
-			if (health.HP >= Info.HealIfBelow * health.MaxHP / 100)
+			// Cast to long to avoid overflow when multiplying by the health
+			if (health.HP >= Info.HealIfBelow * (long)health.MaxHP / 100)
 				return;
 
 			if (damageTicks > 0)
@@ -67,11 +71,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (--ticks <= 0)
 			{
 				ticks = Info.Delay;
-				self.InflictDamage(self, new Damage(-(Info.Step + Info.PercentageStep * health.MaxHP / 100), Info.DamageTypes));
+
+				// Cast to long to avoid overflow when multiplying by the health
+				self.InflictDamage(self, new Damage((int)(-(Info.Step + Info.PercentageStep * (long)health.MaxHP / 100)), Info.DamageTypes));
 			}
 		}
 
-		public void Damaged(Actor self, AttackInfo e)
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
 			if (e.Damage.Value > 0)
 				damageTicks = Info.DamageCooldown;

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -46,6 +46,9 @@ namespace OpenRA.Mods.Common.FileFormats
 				if ((s.Position & 1) == 1)
 					s.ReadByte(); // Alignment
 
+				if (s.Position == s.Length)
+					break; // Break if we aligned with end of stream
+
 				var blockType = s.ReadASCII(4);
 				switch (blockType)
 				{
@@ -75,9 +78,13 @@ namespace OpenRA.Mods.Common.FileFormats
 						dataOffset = s.Position;
 						s.Position += dataSize;
 						break;
+					case "LIST":
+					case "cue ":
+						var listCueChunkSize = s.ReadInt32();
+						s.ReadBytes(listCueChunkSize);
+						break;
 					default:
-						var unknownChunkSize = s.ReadInt32();
-						s.ReadBytes(unknownChunkSize);
+						s.Position = s.Length; // Skip to end of stream
 						break;
 				}
 			}
@@ -130,7 +137,8 @@ namespace OpenRA.Mods.Common.FileFormats
 			int outOffset;
 			int currentBlock;
 
-			public WavStream(Stream stream, int dataSize, short blockAlign, short channels, int uncompressedSize) : base(stream)
+			public WavStream(Stream stream, int dataSize, short blockAlign, short channels, int uncompressedSize)
+				: base(stream)
 			{
 				this.channels = channels;
 				numBlocks = dataSize / blockAlign;

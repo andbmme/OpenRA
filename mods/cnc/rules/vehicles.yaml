@@ -1,7 +1,8 @@
 MCV:
 	Inherits: ^Vehicle
+	Inherits@selection: ^SelectableSupportUnit
 	Valued:
-		Cost: 4000
+		Cost: 3500
 	Tooltip:
 		Name: Mobile Construction Vehicle
 	Buildable:
@@ -12,12 +13,14 @@ MCV:
 		BuildDurationModifier: 40
 		Description: Deploys into another Construction Yard.\n  Unarmed
 	Selectable:
-		Priority: 4
+		DecorationBounds: 36,36
 	Mobile:
 		Speed: 71
-		Crushes: crate, infantry
+		Locomotor: heavywheeled
 	Health:
-		HP: 1200
+		HP: 120000
+	Repairable:
+		HpPerStep: 2182
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -33,12 +36,13 @@ MCV:
 	BaseBuilding:
 	SpawnActorOnDeath:
 		Actor: MCV.Husk
-	SelectionDecorations:
-		VisualBounds: 36,36
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 HARV:
 	Inherits: ^Tank
 	Inherits@CLOAK: ^AcceptsCloakCrate
+	Inherits@selection: ^SelectableEconomicUnit
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -52,56 +56,75 @@ HARV:
 		BuildDurationModifier: 40
 		Description: Collects Tiberium for processing.\n  Unarmed
 	Selectable:
-		Priority: 7
+		DecorationBounds: 36,36
 	Harvester:
 		Resources: Tiberium, BlueTiberium
-		PipCount: 7
 		Capacity: 20
 		BaleLoadDelay: 12
 		BaleUnloadDelay: 6
-		SearchFromProcRadius: 25
-		SearchFromOrderRadius: 15
+		SearchFromProcRadius: 15
+		SearchFromHarvesterRadius: 8
+		HarvestFacings: 8
+		EmptyCondition: no-tiberium
 	Mobile:
 		Speed: 85
 	Health:
-		HP: 625
+		HP: 62500
+	Repairable:
+		HpPerStep: 2537
 	Armor:
 		Type: Heavy
 	RevealsShroud:
 		Range: 4c0
 	SpawnActorOnDeath:
 		Actor: HARV.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 	WithHarvestAnimation:
 	WithDockingAnimation:
 	Explodes:
+		RequiresCondition: !no-tiberium
 		Weapon: TiberiumExplosion
-	SelectionDecorations:
-		VisualBounds: 36,36
+	WithHarvesterPipsDecoration:
+		Position: BottomLeft
+		Margin: 4, 3
+		RequiresSelection: true
+		PipCount: 7
+		ResourceSequences:
+			Tiberium: pip-green
+			BlueTiberium: pip-blue
 
 APC:
 	Inherits: ^Tank
 	Inherits@EXPERIENCE: ^GainsExperience
 	Inherits@CLOAK: ^AcceptsCloakCrate
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
+	Inherits@TRANSPORT: ^Transport
 	Valued:
-		Cost: 550
+		Cost: 600
 	Tooltip:
 		Name: APC
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 30
 		Prerequisites: pyle
 		Queue: Vehicle.GDI
+		BuildDuration: 938
+		BuildDurationModifier: 40
 		Description: Armed infantry transport.\nCan attack Aircraft.\n  Strong vs Vehicles\n  Weak vs Infantry
 	Mobile:
-		TurnSpeed: 8
+		TurnSpeed: 5
 		Speed: 132
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	Health:
-		HP: 215
+		HP: 19000
+	Repairable:
+		HpPerStep: 1440
 	Armor:
 		Type: Heavy
 	RevealsShroud:
-		Range: 7c0
+		Range: 6c0
 	Turreted:
 		TurnSpeed: 10
 	Armament@PRIMARY:
@@ -123,10 +146,11 @@ APC:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
-		PipCount: 5
 		LoadingCondition: notmobile
 	SpawnActorOnDeath:
 		Actor: APC.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 ARTY:
 	Inherits: ^Tank
@@ -137,6 +161,8 @@ ARTY:
 		Cost: 600
 	Tooltip:
 		Name: Artillery
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 60
 		Prerequisites: anyhq, ~techlevel.medium
@@ -146,7 +172,9 @@ ARTY:
 		TurnSpeed: 4
 		Speed: 85
 	Health:
-		HP: 75
+		HP: 7500
+	Repairable:
+		HpPerStep: 569
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -156,11 +184,15 @@ ARTY:
 		LocalOffset: 624,0,208
 		MuzzleSequence: muzzle
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithMuzzleOverlay:
 	AutoTarget:
 		InitialStanceAI: Defend
 	SpawnActorOnDeath:
 		Actor: ARTY.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 	Explodes:
 		Weapon: ArtilleryShell
 		EmptyWeapon: UnitExplode
@@ -175,6 +207,8 @@ FTNK:
 		Cost: 600
 	Tooltip:
 		Name: Flame Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 50
 		Prerequisites: anyhq, ~techlevel.medium
@@ -184,7 +218,9 @@ FTNK:
 		TurnSpeed: 7
 		Speed: 99
 	Health:
-		HP: 270
+		HP: 27000
+	Repairable:
+		HpPerStep: 2046
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -200,6 +236,8 @@ FTNK:
 		EmptyWeapon: FlametankExplode
 	SpawnActorOnDeath:
 		Actor: FTNK.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 BGGY:
 	Inherits: ^Vehicle
@@ -210,6 +248,8 @@ BGGY:
 		Cost: 300
 	Tooltip:
 		Name: Nod Buggy
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 20
 		Prerequisites: afld
@@ -219,7 +259,9 @@ BGGY:
 		TurnSpeed: 10
 		Speed: 170
 	Health:
-		HP: 120
+		HP: 12000
+	Repairable:
+		HpPerStep: 1819
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -236,6 +278,8 @@ BGGY:
 	WithSpriteTurret:
 	SpawnActorOnDeath:
 		Actor: BGGY.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 BIKE:
 	Inherits: ^Vehicle
@@ -246,6 +290,8 @@ BIKE:
 		Cost: 500
 	Tooltip:
 		Name: Recon Bike
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 30
 		Prerequisites: afld
@@ -254,15 +300,11 @@ BIKE:
 	Mobile:
 		TurnSpeed: 10
 		Speed: 213
-		TerrainSpeeds:
-			Clear: 70
-			Rough: 35
-			Road: 100
-			Tiberium: 35
-			BlueTiberium: 35
-			Beach: 35
+		Locomotor: bike
 	Health:
-		HP: 110
+		HP: 11000
+	Repairable:
+		HpPerStep: 1000
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -274,6 +316,8 @@ BIKE:
 	AttackFrontal:
 	SpawnActorOnDeath:
 		Actor: BIKE.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 JEEP:
 	Inherits: ^Vehicle
@@ -284,6 +328,8 @@ JEEP:
 		Cost: 400
 	Tooltip:
 		Name: Hum-Vee
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 20
 		Prerequisites: weap
@@ -293,7 +339,9 @@ JEEP:
 		TurnSpeed: 10
 		Speed: 156
 	Health:
-		HP: 160
+		HP: 16000
+	Repairable:
+		HpPerStep: 1819
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -310,6 +358,8 @@ JEEP:
 	WithSpriteTurret:
 	SpawnActorOnDeath:
 		Actor: JEEP.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 LTNK:
 	Inherits: ^Tank
@@ -320,6 +370,8 @@ LTNK:
 		Cost: 650
 	Tooltip:
 		Name: Light Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 40
 		Prerequisites: anyhq, ~techlevel.medium
@@ -331,7 +383,9 @@ LTNK:
 		TurnSpeed: 7
 		Speed: 110
 	Health:
-		HP: 340
+		HP: 34000
+	Repairable:
+		HpPerStep: 2273
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -349,6 +403,8 @@ LTNK:
 	WithSpriteTurret:
 	SpawnActorOnDeath:
 		Actor: LTNK.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 
 MTNK:
 	Inherits: ^Tank
@@ -359,6 +415,8 @@ MTNK:
 		Cost: 800
 	Tooltip:
 		Name: Medium Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 40
 		Prerequisites: anyhq, ~techlevel.medium
@@ -367,7 +425,9 @@ MTNK:
 	Mobile:
 		Speed: 85
 	Health:
-		HP: 450
+		HP: 45000
+	Repairable:
+		HpPerStep: 2557
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -385,8 +445,10 @@ MTNK:
 	WithSpriteTurret:
 	SpawnActorOnDeath:
 		Actor: MTNK.Husk
-	SelectionDecorations:
-		VisualBounds: 28,28
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
+	Selectable:
+		DecorationBounds: 28,28
 
 HTNK:
 	Inherits: ^Tank
@@ -397,17 +459,21 @@ HTNK:
 		Cost: 1500
 	Tooltip:
 		Name: Mammoth Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 60
 		Prerequisites: eye, ~techlevel.high
 		Queue: Vehicle.GDI
 		Description: Heavily armored GDI Tank.\nCan attack Aircraft.\n  Strong vs Everything
 	Mobile:
-		Crushes: wall, heavywall, crate, infantry
+		Locomotor: heavytracked
 		Speed: 56
 		TurnSpeed: 3
 	Health:
-		HP: 870
+		HP: 87000
+	Repairable:
+		HpPerStep: 2637
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -431,13 +497,16 @@ HTNK:
 	AttackTurreted:
 	WithMuzzleOverlay:
 	SelfHealing:
+		Step: 500
 		Delay: 10
 		HealIfBelow: 50
 		DamageCooldown: 200
 	SpawnActorOnDeath:
 		Actor: HTNK.Husk
-	SelectionDecorations:
-		VisualBounds: 34,34,0,-3
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
+	Selectable:
+		DecorationBounds: 34,34,0,-3
 
 MSAM:
 	Inherits: ^Tank
@@ -445,9 +514,11 @@ MSAM:
 	Inherits@CLOAK: ^AcceptsCloakCrate
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
-		Cost: 1000
+		Cost: 900
 	Tooltip:
 		Name: Rocket Launcher
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 50
 		Prerequisites: anyhq, ~techlevel.medium
@@ -457,7 +528,9 @@ MSAM:
 		Speed: 85
 		TurnSpeed: 4
 	Health:
-		HP: 120
+		HP: 12000
+	Repairable:
+		HpPerStep: 546
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -469,13 +542,19 @@ MSAM:
 		Weapon: 227mm
 		LocalOffset: 213,128,0, 213,-128,0
 	Armament@SECONDARY:
+		Name: secondary
 		Weapon: 227mm
 		LocalOffset: 213,-128,0, 213,128,0
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithSpriteTurret:
-		AimSequence: aim
 	SpawnActorOnDeath:
 		Actor: MSAM.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
+	WithTurretAimAnimation:
+		Sequence: aim
 
 MLRS:
 	Inherits: ^Tank
@@ -486,6 +565,8 @@ MLRS:
 		Cost: 600
 	Tooltip:
 		Name: Mobile S.A.M.
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 70
 		Prerequisites: anyhq, ~techlevel.medium
@@ -495,7 +576,9 @@ MLRS:
 		Speed: 99
 		TurnSpeed: 7
 	Health:
-		HP: 180
+		HP: 18000
+	Repairable:
+		HpPerStep: 1364
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -509,15 +592,23 @@ MLRS:
 		LocalOffset: 0,-171,0, 0,171,0
 	AmmoPool:
 		Ammo: 2
-		PipCount: 0
+		AmmoCondition: ammo
 	AttackTurreted:
-	WithReloadingSpriteTurret:
-		AmmoPoolName: primary
+	WithSpriteTurret:
+		RequiresCondition: ammo > 1
+	WithSpriteTurret@OneMissile:
+		RequiresCondition: ammo == 1
+		Sequence: turret1
+	WithSpriteTurret@NoMissiles:
+		RequiresCondition: !ammo
+		Sequence: turret0
 	AutoTarget:
 		InitialStanceAI: Defend
 	RenderRangeCircle:
 	SpawnActorOnDeath:
 		Actor: MLRS.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 	ReloadAmmoPool:
 		Delay: 45
 		Count: 1
@@ -530,17 +621,21 @@ STNK:
 		Cost: 900
 	Tooltip:
 		Name: Stealth Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 90
 		Prerequisites: tmpl, ~techlevel.high
 		Queue: Vehicle.Nod
 		Description: Long-range missile tank that can cloak.\nCan attack Aircraft.\nHas weak armor. Can be spotted by infantry and defense structures.\n  Strong vs Vehicles, Tanks\n  Weak vs Infantry.
 	Mobile:
+		Locomotor: heavywheeled
 		TurnSpeed: 10
 		Speed: 142
-		Crushes: crate, infantry
 	Health:
-		HP: 150
+		HP: 15000
+	Repairable:
+		HpPerStep: 758
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -550,7 +645,7 @@ STNK:
 		CloakDelay: 90
 		CloakSound: trans1.aud
 		UncloakSound: trans1.aud
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
@@ -561,9 +656,10 @@ STNK:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: ReturnFire
-	Targetable:
 	SpawnActorOnDeath:
 		Actor: STNK.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true
 	-MustBeDestroyed:
 
 MHQ:
@@ -573,7 +669,7 @@ MHQ:
 	Tooltip:
 		Name: Mobile HQ
 	Health:
-		HP: 200
+		HP: 20000
 	Armor:
 		Type: Light
 	Mobile:
@@ -588,6 +684,7 @@ MHQ:
 
 TRUCK:
 	Inherits: ^Vehicle
+	Inherits@selection: ^SelectableSupportUnit
 	Buildable:
 		Queue: Vehicle.GDI, Vehicle.Nod
 		BuildPaletteOrder: 35
@@ -597,10 +694,8 @@ TRUCK:
 		Cost: 500
 	Tooltip:
 		Name: Supply Truck
-	Selectable:
-		Priority: 6
 	Health:
-		HP: 110
+		HP: 11000
 	Armor:
 		Type: Light
 	Mobile:
@@ -612,3 +707,5 @@ TRUCK:
 		PlayerExperience: 50
 	SpawnActorOnDeath:
 		Actor: TRUCK.Husk
+		OwnerType: InternalName
+		EffectiveOwnerFromOwner: true

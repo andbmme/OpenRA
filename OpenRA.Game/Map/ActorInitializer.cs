@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,17 +9,21 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA
 {
 	public interface IActorInitializer
 	{
 		World World { get; }
-		T Get<T>() where T : IActorInit;
-		U Get<T, U>() where T : IActorInit<U>;
-		bool Contains<T>() where T : IActorInit;
+		T GetOrDefault<T>(TraitInfo info) where T : IActorInit;
+		T Get<T>(TraitInfo info) where T : IActorInit;
+		U GetValue<T, U>(TraitInfo info) where T : IActorInit<U>;
+		U GetValue<T, U>(TraitInfo info, U fallback) where T : IActorInit<U>;
+		bool Contains<T>(TraitInfo info) where T : IActorInit;
 	}
 
 	public class ActorInitializer : IActorInitializer
@@ -35,38 +39,65 @@ namespace OpenRA
 			Dict = dict;
 		}
 
-		public T Get<T>() where T : IActorInit { return Dict.Get<T>(); }
-		public U Get<T, U>() where T : IActorInit<U> { return Dict.Get<T>().Value(World); }
-		public bool Contains<T>() where T : IActorInit { return Dict.Contains<T>(); }
+		public T GetOrDefault<T>(TraitInfo info) where T : IActorInit
+		{
+			return Dict.GetOrDefault<T>();
+		}
+
+		public T Get<T>(TraitInfo info) where T : IActorInit
+		{
+			var init = GetOrDefault<T>(info);
+			if (init == null)
+			    throw new InvalidOperationException("TypeDictionary does not contain instance of type `{0}`".F(typeof(T)));
+
+			return init;
+		}
+
+		public U GetValue<T, U>(TraitInfo info) where T : IActorInit<U>
+		{
+			return Get<T>(info).Value;
+		}
+
+		public U GetValue<T, U>(TraitInfo info, U fallback) where T : IActorInit<U>
+		{
+			var init = GetOrDefault<T>(info);
+			return init != null ? init.Value : fallback;
+		}
+
+		public bool Contains<T>(TraitInfo info) where T : IActorInit { return GetOrDefault<T>(info) != null; }
 	}
 
 	public interface IActorInit { }
 
 	public interface IActorInit<T> : IActorInit
 	{
-		T Value(World world);
+		T Value { get; }
 	}
 
 	public class LocationInit : IActorInit<CPos>
 	{
-		[FieldFromYamlKey] readonly CPos value = CPos.Zero;
+		[FieldFromYamlKey]
+		readonly CPos value = CPos.Zero;
+
 		public LocationInit() { }
 		public LocationInit(CPos init) { value = init; }
-		public CPos Value(World world) { return value; }
+		public CPos Value { get { return value; } }
 	}
 
-	public class OwnerInit : IActorInit<Player>
+	public class OwnerInit : IActorInit
 	{
-		[FieldFromYamlKey] public readonly string PlayerName = "Neutral";
+		[FieldFromYamlKey]
+		public readonly string InternalName = "Neutral";
+
 		Player player;
 
 		public OwnerInit() { }
-		public OwnerInit(string playerName) { PlayerName = playerName; }
+		public OwnerInit(string playerName) { InternalName = playerName; }
 
 		public OwnerInit(Player player)
 		{
 			this.player = player;
-			PlayerName = player.InternalName;
+			InternalName = player.InternalName;
 		}
 
 		public Player Value(World world)
@@ -74,7 +105,7 @@ namespace OpenRA
 			if (player != null)
 				return player;
 
-			return world.Players.First(x => x.InternalName == PlayerName);
+			return world.Players.First(x => x.InternalName == InternalName);
 		}
 	}
 }

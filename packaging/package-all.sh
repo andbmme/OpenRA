@@ -10,7 +10,7 @@ export GIT_TAG="$1"
 export BUILD_OUTPUT_DIR="$2"
 
 # Set the working dir to the location of this script using bash parameter expansion
-cd "${0%/*}"
+cd "${0%/*}" || exit 1
 
 #build packages using a subshell so directory changes do not persist beyond the function
 function build_package() (
@@ -27,8 +27,12 @@ function build_package() (
 
 #exit on any non-zero exited (failed) command
 set -e
-build_package windows
-build_package osx
-build_package linux
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  build_package macos
+else
+  build_package windows
+  build_package linux
+  build_package source
+fi
 
 echo "Package build done."

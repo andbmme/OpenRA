@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,7 +13,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
 
@@ -25,12 +24,11 @@ namespace OpenRA.Mods.Common.Lint
 
 		List<MiniYamlNode> sequenceDefinitions;
 
-		public void Run(Action<string> emitError, Action<string> emitWarning, Map map)
+		public void Run(Action<string> emitError, Action<string> emitWarning, ModData modData, Map map)
 		{
 			if (map.SequenceDefinitions == null)
 				return;
 
-			var modData = Game.ModData;
 			this.emitError = emitError;
 
 			sequenceDefinitions = MiniYaml.Load(map, modData.Manifest.Sequences, map.SequenceDefinitions);
@@ -48,14 +46,14 @@ namespace OpenRA.Mods.Common.Lint
 						foreach (var sequenceProvider in sequenceProviders)
 						{
 							var image = renderInfo.GetImage(actorInfo.Value, sequenceProvider, faction);
-							if (sequenceDefinitions.All(s => s.Key != image.ToLowerInvariant()) && !actorInfo.Value.Name.Contains("^"))
+							if (sequenceDefinitions.All(s => s.Key != image.ToLowerInvariant()))
 								emitError("Sprite image {0} from actor {1} using faction {2} has no sequence definition."
 									.F(image, actorInfo.Value.Name, faction));
 						}
 					}
 				}
 
-				foreach (var traitInfo in actorInfo.Value.TraitInfos<ITraitInfo>())
+				foreach (var traitInfo in actorInfo.Value.TraitInfos<TraitInfo>())
 				{
 					var fields = traitInfo.GetType().GetFields();
 					foreach (var field in fields)
@@ -154,7 +152,7 @@ namespace OpenRA.Mods.Common.Lint
 		}
 
 		void CheckDefinitions(string image, SequenceReferenceAttribute sequenceReference,
-			KeyValuePair<string, ActorInfo> actorInfo, string sequence, string faction, FieldInfo field, ITraitInfo traitInfo)
+			KeyValuePair<string, ActorInfo> actorInfo, string sequence, string faction, FieldInfo field, TraitInfo traitInfo)
 		{
 			var definitions = sequenceDefinitions.FirstOrDefault(n => n.Key == image.ToLowerInvariant());
 			if (definitions != null)

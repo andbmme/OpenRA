@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.Render
@@ -30,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		readonly Dictionary<Barrel, bool> visible = new Dictionary<Barrel, bool>();
 		readonly Dictionary<Barrel, AnimationWithOffset> anims = new Dictionary<Barrel, AnimationWithOffset>();
-		readonly Func<int> getFacing;
+		readonly Func<WAngle> getFacing;
 		readonly Armament[] armaments;
 
 		public WithMuzzleOverlay(Actor self, WithMuzzleOverlayInfo info)
@@ -54,11 +55,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 					// Workaround for broken ternary operators in certain versions of mono (3.10 and
 					// certain versions of the 3.8 series): https://bugzilla.xamarin.com/show_bug.cgi?id=23319
 					if (turreted != null)
-						getFacing = () => turreted.TurretFacing;
+						getFacing = () => WAngle.FromFacing(turreted.TurretFacing);
 					else if (facing != null)
-						getFacing = () => facing.Facing;
+						getFacing = () => WAngle.FromFacing(facing.Facing);
 					else
-						getFacing = () => 0;
+						getFacing = () => WAngle.Zero;
 
 					var muzzleFlash = new Animation(self.World, render.GetImage(self), getFacing);
 					visible.Add(barrel, false);
@@ -78,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			var sequence = a.Info.MuzzleSequence;
 			if (a.Info.MuzzleSplitFacings > 0)
-				sequence += Util.QuantizeFacing(getFacing(), a.Info.MuzzleSplitFacings).ToString();
+				sequence += Util.IndexFacing(getFacing(), a.Info.MuzzleSplitFacings).ToString();
 
 			visible[barrel] = true;
 			anims[barrel].Animation.PlayThen(sequence, () => visible[barrel] = false);
@@ -86,7 +87,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyAttack.PreparingAttack(Actor self, Target target, Armament a, Barrel barrel) { }
 
-		public IEnumerable<IRenderable> Render(Actor self, WorldRenderer wr)
+		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
 			foreach (var arm in armaments)
 			{
@@ -101,6 +102,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 						yield return r;
 				}
 			}
+		}
+
+		IEnumerable<Rectangle> IRender.ScreenBounds(Actor self, WorldRenderer wr)
+		{
+			// Muzzle flashes don't contribute to actor bounds
+			yield break;
 		}
 
 		void ITick.Tick(Actor self)

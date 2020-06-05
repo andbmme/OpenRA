@@ -36,7 +36,6 @@ carryall.reinforce:
 frigate:
 	Aircraft:
 		LandableTerrainTypes: Sand, Rock, Transition, Spice, SpiceSand, Dune, Concrete
-		VTOL: true # The frigate would teleport to land otherwise
 
 concreteb:
 	Buildable:
@@ -56,9 +55,9 @@ starport:
 
 missile_tank:
 	Buildable:
-		Prerequisites: ~heavy.missiletank, upgrade.heavy, research_centre
+		Prerequisites: ~heavy.missile_tank, upgrade.heavy, research_centre
 
-sardaukar:
+mpsardaukar:
 	Buildable:
 		Prerequisites: ~disabled
 

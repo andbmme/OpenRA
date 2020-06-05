@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,7 @@
  */
 #endregion
 
-using System;
+using System.Linq;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Traits;
 
@@ -33,6 +33,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How long to show the cash tick indicator when enabled.")]
 		public readonly int DisplayDuration = 30;
 
+		[Desc("Use resource storage for cash granted.")]
+		public readonly bool UseResourceStorage = false;
+
 		public override object Create(ActorInitializer init) { return new CashTrickler(this); }
 	}
 
@@ -40,7 +43,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly CashTricklerInfo info;
 		PlayerResources resources;
-		[Sync] public int Ticks { get; private set; }
+		[Sync]
+		public int Ticks { get; private set; }
 
 		public CashTrickler(CashTricklerInfo info)
 			: base(info)
@@ -71,34 +75,32 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (--Ticks < 0)
 			{
+				var cashTrickerModifier = self.TraitsImplementing<ICashTricklerModifier>().Select(x => x.GetCashTricklerModifier());
+
 				Ticks = info.Interval;
-				ModifyCash(self, self.Owner, info.Amount);
+				ModifyCash(self, self.Owner, Util.ApplyPercentageModifiers(info.Amount, cashTrickerModifier));
 			}
 		}
 
 		void AddCashTick(Actor self, int amount)
 		{
 			self.World.AddFrameEndTask(w => w.Add(
-				new FloatingText(self.CenterPosition, self.Owner.Color.RGB, FloatingText.FormatCashTick(amount), info.DisplayDuration)));
+				new FloatingText(self.CenterPosition, self.Owner.Color, FloatingText.FormatCashTick(amount), info.DisplayDuration)));
 		}
 
 		void ModifyCash(Actor self, Player newOwner, int amount)
 		{
-			if (amount < 0)
+			if (info.UseResourceStorage)
 			{
-				// Check whether the amount of cash to be removed would exceed available player cash, in that case only remove all the player cash
-				var drain = Math.Min(resources.Cash + resources.Resources, -amount);
-				resources.TakeCash(drain);
-
-				if (info.ShowTicks)
-					AddCashTick(self, -drain);
+				var initialAmount = resources.Resources;
+				resources.GiveResources(amount);
+				amount = resources.Resources - initialAmount;
 			}
 			else
-			{
-				resources.GiveCash(amount);
-				if (info.ShowTicks)
-					AddCashTick(self, amount);
-			}
+				amount = resources.ChangeCash(amount);
+
+			if (info.ShowTicks && amount != 0)
+				AddCashTick(self, amount);
 		}
 	}
 }

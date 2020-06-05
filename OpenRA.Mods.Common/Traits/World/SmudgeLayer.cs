@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[Desc("Attach this to the world actor.", "Order of the layers defines the Z sorting.")]
-	public class SmudgeLayerInfo : ITraitInfo
+	public class SmudgeLayerInfo : TraitInfo
 	{
 		public readonly string Type = "Scorch";
 
@@ -36,11 +36,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Sprite sequence name")]
 		public readonly string SmokeType = "smoke_m";
-		[SequenceReference("SmokeType")] public readonly string SmokeSequence = "idle";
 
-		[PaletteReference] public readonly string SmokePalette = "effect";
+		[SequenceReference("SmokeType")]
+		public readonly string SmokeSequence = "idle";
 
-		[PaletteReference] public readonly string Palette = TileSet.TerrainPaletteInternalName;
+		[PaletteReference]
+		public readonly string SmokePalette = "effect";
+
+		[PaletteReference]
+		public readonly string Palette = TileSet.TerrainPaletteInternalName;
 
 		[FieldLoader.LoadUsing("LoadInitialSmudges")]
 		public readonly Dictionary<CPos, MapSmudge> InitialSmudges;
@@ -69,7 +73,7 @@ namespace OpenRA.Mods.Common.Traits
 			return smudges;
 		}
 
-		public object Create(ActorInitializer init) { return new SmudgeLayer(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new SmudgeLayer(init.Self, this); }
 	}
 
 	public class SmudgeLayer : IRenderOverlay, IWorldLoaded, ITickRender, INotifyActorDisposing
@@ -174,7 +178,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.Map.Contains(loc))
 				return;
 
-			var tile = dirty.ContainsKey(loc) ? dirty[loc] : new Smudge();
+			var tile = dirty.ContainsKey(loc) ? dirty[loc] : default(Smudge);
 
 			// Setting Sprite to null to indicate a deleted smudge.
 			tile.Sprite = null;

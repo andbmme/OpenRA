@@ -29,6 +29,7 @@ Players:
 		Faction: gdi
 		Color: F5D378
 		Enemies: Nod
+		Bot: campaign
 	PlayerReference@Nod:
 		Name: Nod
 		AllowBots: False
@@ -638,7 +639,7 @@ Actors:
 	Detonator: CRATE.plain
 		Location: 59,43
 		Owner: GDI
-	Radar: hq
+	CommCenter: hq
 		Location: 57,32
 		Owner: GDI
 	Actor187: jeep

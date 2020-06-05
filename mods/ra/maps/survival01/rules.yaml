@@ -48,7 +48,7 @@ AFLD.mission:
 ATEK.mission:
 	Inherits: ATEK
 	GpsPower:
-		ChargeTime: 0
+		ChargeInterval: 0
 	Power:
 		Amount: 0
 	-Selectable:
@@ -57,6 +57,7 @@ ATEK.mission:
 	-Huntable:
 	RenderSprites:
 		Image: ATEK
+	Interactable:
 
 GUN:
 	Valued:

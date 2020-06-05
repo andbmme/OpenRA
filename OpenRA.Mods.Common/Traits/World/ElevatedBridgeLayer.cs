@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,12 +15,12 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class ElevatedBridgeLayerInfo : ITraitInfo, Requires<DomainIndexInfo>, ILobbyCustomRulesIgnore
+	public class ElevatedBridgeLayerInfo : TraitInfo, Requires<DomainIndexInfo>, ILobbyCustomRulesIgnore
 	{
 		[Desc("Terrain type used by cells outside any elevated bridge footprint.")]
 		public readonly string ImpassableTerrainType = "Impassable";
 
-		public object Create(ActorInitializer init) { return new ElevatedBridgeLayer(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new ElevatedBridgeLayer(init.Self, this); }
 	}
 
 	// For now this is mostly copies TerrainTunnelLayer. This will change once bridge destruction is implemented
@@ -69,21 +69,22 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, MobileInfo mi) { return enabled; }
+		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, LocomotorInfo li) { return enabled; }
 		byte ICustomMovementLayer.Index { get { return CustomMovementLayerType.ElevatedBridge; } }
 		bool ICustomMovementLayer.InteractsWithDefaultLayer { get { return true; } }
+		bool ICustomMovementLayer.ReturnToGroundLayerOnIdle { get { return false; } }
 
 		WPos ICustomMovementLayer.CenterOfCell(CPos cell)
 		{
 			return cellCenters[cell];
 		}
 
-		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
 			return ends.Contains(cell) ? 0 : int.MaxValue;
 		}
 
-		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
 			return ends.Contains(cell) ? 0 : int.MaxValue;
 		}

@@ -103,6 +103,7 @@ TRAN:
 		Types: Demitri
 		MaxWeight: 1
 	-Selectable:
+	Interactable:
 
 LST:
 	Cargo:
@@ -117,7 +118,7 @@ PBOX:
 		Types: Infantry, Demitri
 
 5TNK:
-	Inherits: ^Tank
+	Inherits: ^TrackedVehicle
 	Inherits@AUTOTARGET: ^AutoTargetAll
 	Valued:
 		Cost: 10000
@@ -125,12 +126,11 @@ PBOX:
 		Name: Super Tank
 		GenericName: Super Tank
 	Health:
-		HP: 20000
+		HP: 2000000
 	Armor:
 		Type: Concrete
 	Mobile:
 		Speed: 42
-		Crushes: wall, mine, crate, infantry
 	RevealsShroud:
 		Range: 6c0
 		RequiresCondition: !friendly
@@ -164,7 +164,7 @@ PBOX:
 	SpawnActorOnDeath:
 		Actor: 5TNK.Husk
 	SelfHealing:
-		Step: 1
+		Step: 100
 		Delay: 1
 		HealIfBelow: 100
 		DamageCooldown: 150
@@ -180,9 +180,12 @@ PBOX:
 	ThrowsParticle@turret:
 		Anim: turret
 	Health:
-		HP: 2000
+		HP: 200000
 	RenderSprites:
 		Image: 4TNK
+	-Capturable:
+	-TransformOnCapture:
+	-InfiltrateForTransform:
 
 DOME.NoInfiltrate:
 	Inherits: DOME
@@ -192,7 +195,9 @@ DOME.NoInfiltrate:
 		Image: DOME
 	-InfiltrateForExploration:
 	Targetable:
-		TargetTypes: Ground, Structure, C4, DetonateAttack, MissionObjective
+		TargetTypes: GroundActor, Structure, C4, DetonateAttack, MissionObjective
+	ProvidesPrerequisite:
+		Prerequisite: dome
 
 SPY:
 	Infiltrates:
@@ -331,7 +336,7 @@ SHOK:
 	Buildable:
 		Prerequisites: ~disabled
 
-HIJACKER:
+THF:
 	Buildable:
 		Prerequisites: ~disabled
 

@@ -14,10 +14,8 @@ NAPULS:
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Selectable:
-		Bounds: 78, 54, 0, -12
 	Health:
-		HP: 500
+		HP: 50000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -26,18 +24,16 @@ NAPULS:
 		TurnSpeed: 10
 		InitialFacing: 224
 	AttackTurreted:
-		RequiresCondition: !empdisable && !disabled
+		RequiresCondition: !build-incomplete && !empdisable && !disabled
 	Armament:
 		Weapon: EMPulseCannon
 		LocalOffset: 212,0,1768
 		LocalYaw: 0,100
 	WithSpriteTurret:
+		RequiresCondition: !build-incomplete
 		Sequence: turret
 	Power:
 		Amount: -150
-		RequiresCondition: !powerdown
-	SelectionDecorations:
-		VisualBounds: 78, 54, 0, -12
 	RenderSprites:
 		Image: napuls.gdi
 		FactionImages:
@@ -49,7 +45,7 @@ NAPULS:
 		PauseOnCondition: empdisable || disabled
 		Cursor: emp
 		Icon: emp
-		ChargeTime: 135
+		ChargeInterval: 3375
 		Description: E.M. Pulse
 		LongDesc: Fires a pulse blast which disables\nall mechanical units in the area.
 		EndChargeSpeechNotification: EmPulseCannonReady

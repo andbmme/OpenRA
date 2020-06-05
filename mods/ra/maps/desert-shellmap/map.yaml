@@ -113,7 +113,7 @@ Actors:
 	Actor27: barl
 		Location: 42,45
 		Owner: Neutral
-	Actor333: syrf
+	Actor333: syrd
 		Location: 67,95
 		Owner: Allies
 	Actor53: brik
@@ -1207,10 +1207,10 @@ Actors:
 		Location: 60,93
 		Owner: Neutral
 	Chinook1Entry: waypoint
-		Location: 44,126
+		Location: 45,126
 		Owner: Neutral
 	Chinook2Entry: waypoint
-		Location: 47,126
+		Location: 48,126
 		Owner: Neutral
 	Paradrop1: waypoint
 		Location: 70,50

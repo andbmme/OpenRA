@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using Eluant;
 using Eluant.ObjectBinding;
-using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Scripting;
@@ -34,8 +32,13 @@ namespace OpenRA
 
 	public enum WinState { Undefined, Won, Lost }
 
+	public class PlayerBitMask { }
+
 	public class Player : IScriptBindable, IScriptNotifyBind, ILuaTableBinding, ILuaEqualityBinding, ILuaToStringBinding
 	{
+		public const string PlayerActorType = "Player";
+		public const string EditorPlayerActorType = "EditorPlayer";
+
 		struct StanceColors
 		{
 			public Color Self;
@@ -45,7 +48,7 @@ namespace OpenRA
 		}
 
 		public readonly Actor PlayerActor;
-		public readonly HSLColor Color;
+		public readonly Color Color;
 
 		public readonly string PlayerName;
 		public readonly string InternalName;
@@ -56,6 +59,8 @@ namespace OpenRA
 		public readonly PlayerReference PlayerReference;
 		public readonly bool IsBot;
 		public readonly string BotType;
+		public readonly Shroud Shroud;
+		public readonly FrozenActorLayer FrozenActorLayer;
 
 		/// <summary>The faction (including Random, etc) that was selected in the lobby.</summary>
 		public readonly FactionInfo DisplayFaction;
@@ -65,8 +70,27 @@ namespace OpenRA
 		public bool HasObjectives = false;
 		public bool Spectating;
 
-		public Shroud Shroud;
 		public World World { get; private set; }
+
+		readonly bool inMissionMap;
+		readonly IUnlocksRenderPlayer[] unlockRenderPlayer;
+
+		// Each player is identified with a unique bit in the set
+		// Cache masks for the player's index and ally/enemy player indices for performance.
+		public LongBitSet<PlayerBitMask> PlayerMask;
+		public LongBitSet<PlayerBitMask> AlliedPlayersMask = default(LongBitSet<PlayerBitMask>);
+		public LongBitSet<PlayerBitMask> EnemyPlayersMask = default(LongBitSet<PlayerBitMask>);
+
+		public bool UnlockedRenderPlayer
+		{
+			get
+			{
+				if (unlockRenderPlayer.Any(x => x.RenderPlayerUnlocked))
+					return true;
+
+				return WinState != WinState.Undefined && !inMissionMap;
+			}
+		}
 
 		readonly StanceColors stanceColors;
 
@@ -105,6 +129,8 @@ namespace OpenRA
 			InternalName = pr.Name;
 			PlayerReference = pr;
 
+			inMissionMap = world.Map.Visibility.HasFlag(MapVisibility.MissionSelector);
+
 			// Real player or host-created bot
 			if (client != null)
 			{
@@ -137,11 +163,25 @@ namespace OpenRA
 				DisplayFaction = ChooseDisplayFaction(world, pr.Faction);
 			}
 
-			PlayerActor = world.CreateActor("Player", new TypeDictionary { new OwnerInit(this) });
+			if (!Spectating)
+				PlayerMask = new LongBitSet<PlayerBitMask>(InternalName);
+
+			// Set this property before running any Created callbacks on the player actor
+			IsBot = BotType != null;
+
+			// Special case handling is required for the Player actor:
+			// Since Actor.Created would be called before PlayerActor is assigned here
+			// querying player traits in INotifyCreated.Created would crash.
+			// Therefore assign the uninitialized actor and run the Created callbacks
+			// by calling Initialize ourselves.
+			var playerActorType = world.Type == WorldType.Editor ? EditorPlayerActorType : PlayerActorType;
+			PlayerActor = new Actor(world, playerActorType, new TypeDictionary { new OwnerInit(this) });
+			PlayerActor.Initialize(true);
+
 			Shroud = PlayerActor.Trait<Shroud>();
+			FrozenActorLayer = PlayerActor.TraitOrDefault<FrozenActorLayer>();
 
 			// Enable the bot logic on the host
-			IsBot = BotType != null;
 			if (IsBot && Game.IsHost)
 			{
 				var logic = PlayerActor.TraitsImplementing<IBot>().FirstOrDefault(b => b.Info.Type == BotType);
@@ -155,6 +195,8 @@ namespace OpenRA
 			stanceColors.Allies = ChromeMetrics.Get<Color>("PlayerStanceColorAllies");
 			stanceColors.Enemies = ChromeMetrics.Get<Color>("PlayerStanceColorEnemies");
 			stanceColors.Neutrals = ChromeMetrics.Get<Color>("PlayerStanceColorNeutrals");
+
+			unlockRenderPlayer = PlayerActor.TraitsImplementing<IUnlocksRenderPlayer>().ToArray();
 		}
 
 		public override string ToString()

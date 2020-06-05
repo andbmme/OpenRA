@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,28 +11,32 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using OpenRA.Effects;
 using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Projectiles
 {
-	public class MissileInfo : IProjectileInfo, IRulesetLoaded<WeaponInfo>
+	public class MissileInfo : IProjectileInfo
 	{
 		[Desc("Name of the image containing the projectile sequence.")]
 		public readonly string Image = null;
 
+		[SequenceReference("Image")]
 		[Desc("Loop a randomly chosen sequence of Image from this list while this projectile is moving.")]
-		[SequenceReference("Image")] public readonly string[] Sequences = { "idle" };
+		public readonly string[] Sequences = { "idle" };
 
+		[PaletteReference]
 		[Desc("Palette used to render the projectile sequence.")]
-		[PaletteReference] public readonly string Palette = "effect";
+		public readonly string Palette = "effect";
+
+		[Desc("Palette is a player palette BaseName")]
+		public readonly bool IsPlayerPalette = false;
 
 		[Desc("Should the projectile's shadow be rendered?")]
 		public readonly bool Shadow = false;
@@ -67,8 +71,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Width of projectile (used for finding blocking actors).")]
 		public readonly WDist Width = new WDist(1);
 
-		[Desc("Maximum offset at the maximum range")]
+		[Desc("Maximum inaccuracy offset at the maximum range")]
 		public readonly WDist Inaccuracy = WDist.Zero;
+
+		[Desc("Inaccuracy override when sucessfully locked onto target. Defaults to Inaccuracy if negative.")]
+		public readonly WDist LockOnInaccuracy = new WDist(-1);
 
 		[Desc("Probability of locking onto and following target.")]
 		public readonly int LockOnProbability = 100;
@@ -100,11 +107,13 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Image that contains the trail animation.")]
 		public readonly string TrailImage = null;
 
+		[SequenceReference("TrailImage")]
 		[Desc("Loop a randomly chosen sequence of TrailImage from this list while this projectile is moving.")]
-		[SequenceReference("TrailImage")] public readonly string[] TrailSequences = { "idle" };
+		public readonly string[] TrailSequences = { "idle" };
 
+		[PaletteReference("TrailUsePlayerPalette")]
 		[Desc("Palette used to render the trail sequence.")]
-		[PaletteReference("TrailUsePlayerPalette")] public readonly string TrailPalette = "effect";
+		public readonly string TrailPalette = "effect";
 
 		[Desc("Use the Player Palette to render the trail sequence.")]
 		public readonly bool TrailUsePlayerPalette = false;
@@ -145,17 +154,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			"not trigger fast enough, causing the missile to fly past the target.")]
 		public readonly WDist CloseEnough = new WDist(298);
 
-		[Desc("Scan radius for actors with projectile-blocking trait. If set to a negative value (default), it will automatically scale",
-			"to the blocker with the largest health shape. Only set custom values if you know what you're doing.")]
-		public WDist BlockerScanRadius = new WDist(-1);
-
 		public IProjectile Create(ProjectileArgs args) { return new Missile(this, args); }
-
-		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo wi)
-		{
-			if (BlockerScanRadius < WDist.Zero)
-				BlockerScanRadius = Util.MinimumRequiredBlockerScanRadius(rules);
-		}
 	}
 
 	// TODO: double check square roots!!!
@@ -187,7 +186,7 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		States state;
 		bool targetPassedBy;
-		bool lockOn = false;
+		bool lockOn;
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
 
 		WPos targetPosition;
@@ -196,19 +195,22 @@ namespace OpenRA.Mods.Common.Projectiles
 		WVec tarVel;
 		WVec predVel;
 
-		[Sync] WPos pos;
+		[Sync]
+		WPos pos;
+
 		WVec velocity;
 		int speed;
 		int loopRadius;
 		WDist distanceCovered;
 		WDist rangeLimit;
 
-		int renderFacing;
-		[Sync] int hFacing;
-		[Sync] int vFacing;
+		WAngle renderFacing;
 
-		public Actor SourceActor { get { return args.SourceActor; } }
-		public Target GuidedTarget { get { return args.GuidedTarget; } }
+		[Sync]
+		int hFacing;
+
+		[Sync]
+		int vFacing;
 
 		public Missile(MissileInfo info, ProjectileArgs args)
 		{
@@ -216,7 +218,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			this.args = args;
 
 			pos = args.Source;
-			hFacing = args.Facing;
+			hFacing = args.Facing.Facing;
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
 			rangeLimit = info.RangeLimit != WDist.Zero ? info.RangeLimit : args.Weapon.Range;
@@ -228,9 +230,13 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			var world = args.SourceActor.World;
 
-			if (info.Inaccuracy.Length > 0)
+			if (world.SharedRandom.Next(100) <= info.LockOnProbability)
+				lockOn = true;
+
+			var inaccuracy = lockOn && info.LockOnInaccuracy.Length > -1 ? info.LockOnInaccuracy.Length : info.Inaccuracy.Length;
+			if (inaccuracy > 0)
 			{
-				var inaccuracy = Util.ApplyPercentageModifiers(info.Inaccuracy.Length, args.InaccuracyModifiers);
+				inaccuracy = Util.ApplyPercentageModifiers(inaccuracy, args.InaccuracyModifiers);
 				offset = WVec.FromPDF(world.SharedRandom, 2) * inaccuracy / 1024;
 			}
 
@@ -239,9 +245,6 @@ namespace OpenRA.Mods.Common.Projectiles
 			velocity = new WVec(0, -speed, 0)
 				.Rotate(new WRot(WAngle.FromFacing(vFacing), WAngle.Zero, WAngle.Zero))
 				.Rotate(new WRot(WAngle.Zero, WAngle.Zero, WAngle.FromFacing(hFacing)));
-
-			if (world.SharedRandom.Next(100) <= info.LockOnProbability)
-				lockOn = true;
 
 			if (!string.IsNullOrEmpty(info.Image))
 			{
@@ -426,7 +429,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (!tp.Trait.DeflectionStances.HasStance(tp.Actor.Owner.Stances[args.SourceActor.Owner]))
 				return false;
 
-			return tp.Actor.World.SharedRandom.Next(100 / tp.Trait.Chance) == 0;
+			return tp.Actor.World.SharedRandom.Next(100) < tp.Trait.Chance;
 		}
 
 		void ChangeSpeed(int sign = 1)
@@ -450,7 +453,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		}
 
 		// NOTE: It might be desirable to make lookahead more intelligent by outputting more information
-		//       than just the highest point in the lookahead distance
+		// than just the highest point in the lookahead distance
 		void InclineLookahead(World world, int distCheck, out int predClfHgt, out int predClfDist, out int lastHtChg, out int lastHt)
 		{
 			predClfHgt = 0; // Highest probed terrain height
@@ -833,7 +836,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			else
 				move = HomingTick(world, tarDistVec, relTarHorDist);
 
-			renderFacing = new WVec(move.X, move.Y - move.Z, 0).Yaw.Facing;
+			renderFacing = new WVec(move.X, move.Y - move.Z, 0).Yaw;
 
 			// Move the missile
 			var lastPos = pos;
@@ -846,7 +849,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			var shouldExplode = false;
 			WPos blockedPos;
 			if (info.Blockable && BlocksProjectiles.AnyBlockingActorsBetween(world, lastPos, pos, info.Width,
-				info.BlockerScanRadius, out blockedPos))
+				out blockedPos))
 			{
 				pos = blockedPos;
 				shouldExplode = true;
@@ -855,8 +858,8 @@ namespace OpenRA.Mods.Common.Projectiles
 			// Create the sprite trail effect
 			if (!string.IsNullOrEmpty(info.TrailImage) && --ticksToNextSmoke < 0 && (state != States.Freefall || info.TrailWhenDeactivated))
 			{
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos - 3 * move / 2, w, info.TrailImage, info.TrailSequences.Random(world.SharedRandom),
-					trailPalette, false, false, renderFacing)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos - 3 * move / 2, renderFacing, w,
+					info.TrailImage, info.TrailSequences.Random(world.SharedRandom), trailPalette)));
 
 				ticksToNextSmoke = info.TrailInterval;
 			}
@@ -889,7 +892,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (ticks <= info.Arm)
 				return;
 
-			args.Weapon.Impact(Target.FromPos(pos), args.SourceActor, args.DamageModifiers);
+			args.Weapon.Impact(Target.FromPos(pos), new WarheadArgs(args));
 		}
 
 		public IEnumerable<IRenderable> Render(WorldRenderer wr)
@@ -911,7 +914,7 @@ namespace OpenRA.Mods.Common.Projectiles
 						yield return r;
 				}
 
-				var palette = wr.Palette(info.Palette);
+				var palette = wr.Palette(info.Palette + (info.IsPlayerPalette ? args.SourceActor.Owner.InternalName : ""));
 				foreach (var r in anim.Render(pos, palette))
 					yield return r;
 			}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Widgets;
 
@@ -20,8 +19,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	public class TogglePlayerStanceColorHotkeyLogic : SingleHotkeyBaseLogic
 	{
 		[ObjectCreator.UseCtor]
-		public TogglePlayerStanceColorHotkeyLogic(Widget widget, Dictionary<string, MiniYaml> logicArgs)
-			: base(widget, "TogglePlayerStanceColorKey", "WORLD_KEYHANDLER", logicArgs) { }
+		public TogglePlayerStanceColorHotkeyLogic(Widget widget, ModData modData, Dictionary<string, MiniYaml> logicArgs)
+			: base(widget, modData, "TogglePlayerStanceColorKey", "WORLD_KEYHANDLER", logicArgs) { }
 
 		protected override bool OnHotkeyActivated(KeyInput e)
 		{

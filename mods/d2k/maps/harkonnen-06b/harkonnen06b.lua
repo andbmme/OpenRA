@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -78,7 +78,7 @@ OrdosAttackWaves =
 }
 
 InitialOrdosReinforcements =
-{ 
+{
 	{ "trooper", "trooper", "trooper", "trooper", "light_inf", "light_inf", "light_inf", "light_inf", "light_inf", "light_inf" },
 	{ "combat_tank_o", "combat_tank_o", "quad", "quad", "raider", "raider" }
 }
@@ -143,7 +143,7 @@ CheckSmugglerEnemies = function()
 			end
 
 			if unit.Owner == smuggler_harkonnen and (attacker.Owner == ordos_main or attacker.Owner == ordos_small) then
-				ChangeOwner(smuggler_harkonnen, smuggler_ordos)
+				ChangeOwner(smuggler_harkonnen, smuggler_both)
 			end
 
 			if attacker.Owner == player and not message_check then

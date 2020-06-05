@@ -72,11 +72,7 @@ SHOK:
 	Buildable:
 		Prerequisites: ~disabled
 
-SNIPER:
-	Buildable:
-		Prerequisites: ~disabled
-
-HIJACKER:
+THF:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -94,15 +90,12 @@ AFLD:
 
 GUN:
 	-RepairableBuilding:
+	-WithBuildingRepairDecoration:
 
 HARV:
 	Harvester:
 		SearchFromProcRadius: 50
-		SearchFromOrderRadius: 50
-
-MONEYCRATE:
-	GiveCashCrateAction:
-		Amount: 2000
+		SearchFromHarvesterRadius: 50
 
 powerproxy.paratroopers:
 	ParatroopersPower:

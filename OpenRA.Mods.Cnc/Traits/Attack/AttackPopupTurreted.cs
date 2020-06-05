@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2020 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -21,26 +21,32 @@ namespace OpenRA.Mods.Cnc.Traits
 	class AttackPopupTurretedInfo : AttackTurretedInfo, Requires<BuildingInfo>, Requires<WithEmbeddedTurretSpriteBodyInfo>
 	{
 		[Desc("How many game ticks should pass before closing the actor's turret.")]
-		public int CloseDelay = 125;
+		public readonly int CloseDelay = 125;
 
-		public int DefaultFacing = 0;
+		public readonly int DefaultFacing = 0;
 
 		[Desc("The percentage of damage that is received while this actor is closed.")]
-		public int ClosedDamageMultiplier = 50;
+		public readonly int ClosedDamageMultiplier = 50;
 
+		[SequenceReference]
 		[Desc("Sequence to play when opening.")]
-		[SequenceReference] public string OpeningSequence = "opening";
+		public readonly string OpeningSequence = "opening";
 
+		[SequenceReference]
 		[Desc("Sequence to play when closing.")]
-		[SequenceReference] public string ClosingSequence = "closing";
+		public readonly string ClosingSequence = "closing";
 
+		[SequenceReference]
 		[Desc("Idle sequence to play when closed.")]
-		[SequenceReference] public string ClosedIdleSequence = "closed-idle";
+		public readonly string ClosedIdleSequence = "closed-idle";
+
+		[Desc("Which sprite body to play the animation on.")]
+		public readonly string Body = "body";
 
 		public override object Create(ActorInitializer init) { return new AttackPopupTurreted(init, this); }
 	}
 
-	class AttackPopupTurreted : AttackTurreted, INotifyBuildComplete, INotifyIdle, IDamageModifier
+	class AttackPopupTurreted : AttackTurreted, INotifyIdle, IDamageModifier
 	{
 		enum PopupState { Open, Rotating, Transitioning, Closed }
 
@@ -57,13 +63,26 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			this.info = info;
 			turret = turrets.FirstOrDefault();
-			wsb = init.Self.Trait<WithSpriteBody>();
-			skippedMakeAnimation = init.Contains<SkipMakeAnimsInit>();
+			wsb = init.Self.TraitsImplementing<WithSpriteBody>().Single(w => w.Info.Name == info.Body);
+			skippedMakeAnimation = init.Contains<SkipMakeAnimsInit>(info);
+		}
+
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			// Map placed actors are created in the closed state
+			if (skippedMakeAnimation)
+			{
+				state = PopupState.Closed;
+				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
+				turret.DesiredFacing = null;
+			}
 		}
 
 		protected override bool CanAttack(Actor self, Target target)
 		{
-			if (state == PopupState.Transitioning || !building.BuildComplete)
+			if (state == PopupState.Transitioning)
 				return false;
 
 			if (!base.CanAttack(self, target))
@@ -100,16 +119,6 @@ namespace OpenRA.Mods.Cnc.Traits
 					wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
 					turret.DesiredFacing = null;
 				});
-			}
-		}
-
-		void INotifyBuildComplete.BuildingComplete(Actor self)
-		{
-			if (skippedMakeAnimation)
-			{
-				state = PopupState.Closed;
-				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
-				turret.DesiredFacing = null;
 			}
 		}
 

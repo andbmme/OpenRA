@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop">
-  <id>openra-{MOD}.desktop</id>
+  <id>openra-{MODID}.desktop</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0</project_license>
   <name>OpenRA - {MOD_NAME}</name>
@@ -21,7 +21,7 @@
       <li>Units gain experience as they fight and improve when they earn new ranks</li>
     </ul>
     <p>
-      OpenRA is 100% free, and comes bundled with three distinct mods. When you run a mod for the first time the game can automatically download the original game assets, or you can use the original game disks. 
+      OpenRA is 100% free, and comes bundled with three distinct mods. When you run a mod for the first time the game can automatically download the original game assets, or you can use the original game disks.
     </p>
   </description>
   <screenshots>

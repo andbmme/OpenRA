@@ -1,10 +1,13 @@
 APC:
 	Inherits: ^Tank
 	Inherits@VOXELS: ^VoxelActor
+	Inherits@CARGOPIPS: ^CargoPips
 	Valued:
 		Cost: 800
 	Tooltip:
 		Name: Amphibious APC
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
@@ -13,11 +16,10 @@ APC:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 113
-		TerrainSpeeds:
-			Water: 80
-		RequiresCondition: !empdisable && !loading
+		PauseOnCondition: empdisable || loading || being-captured || carried
+		Locomotor: amphibious
 	Health:
-		HP: 200
+		HP: 20000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -27,7 +29,6 @@ APC:
 	Cargo:
 		Types: Infantry
 		MaxWeight: 5
-		PipCount: 5
 		UnloadVoice: Unload
 		LoadingCondition: loading
 		EjectOnDeath: true
@@ -40,7 +41,7 @@ APC:
 		Sequence: water
 		RequiresCondition: inwater
 	LeavesTrails:
-		RequiresCondition: !inside-tunnel
+		RequiresCondition: !inside-tunnel && inwater
 		Image: wake
 		Palette: effect
 		TerrainTypes: Water
@@ -56,6 +57,8 @@ HVR:
 		Cost: 900
 	Tooltip:
 		Name: Hover MLRS
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 80
@@ -63,19 +66,11 @@ HVR:
 		Description: Hovering vehicle armed with\nlong range missiles.\n  Strong vs Vehicles, Aircraft\n  Weak vs Infantry
 	Mobile:
 		Speed: 99
-		TerrainSpeeds:
-			Clear: 100
-			Road: 100
-			Bridge: 100
-			Rail: 100
-			DirtRoad: 100
-			Rough: 100
-			Water: 100
-			Tiberium: 100
-			BlueTiberium: 100
-			Veins: 100
+		Locomotor: hover
+	Selectable:
+		Bounds: 40,24,0,-10
 	Health:
-		HP: 230
+		HP: 23000
 	Armor:
 		Type: Wood
 	RevealsShroud:
@@ -90,10 +85,16 @@ HVR:
 		Offset: -128,0,85
 	AttackTurreted:
 		Voice: Attack
+		PauseOnCondition: empdisable
 	WithVoxelTurret:
 	Hovers:
+		RequiresCondition: !empdisable
+		BobDistance: -64
+		InitialHeight: 384
+	Carryable:
+		CarriedCondition: carried
 	LeavesTrails:
-		RequiresCondition: !inside-tunnel
+		RequiresCondition: !inside-tunnel && !carried
 		Image: wake
 		Palette: effect
 		TerrainTypes: Water
@@ -111,6 +112,8 @@ SMECH:
 		Cost: 500
 	Tooltip:
 		Name: Wolverine
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
@@ -120,7 +123,7 @@ SMECH:
 		TurnSpeed: 5
 		Speed: 99
 	Health:
-		HP: 175
+		HP: 17500
 	Armor:
 		Type: Light
 	RevealsShroud:
@@ -129,6 +132,7 @@ SMECH:
 		MaxHeightDelta: 3
 	AttackFrontal:
 		Voice: Attack
+		PauseOnCondition: empdisable
 	Armament:
 		Weapon: AssaultCannon
 	Voiced:
@@ -138,9 +142,10 @@ SMECH:
 	WithFacingSpriteBody:
 		Sequence: stand
 	WithAttackAnimation:
-		AttackSequence: shoot
+		Sequence: shoot
 	WithMoveAnimation:
 		MoveSequence: walk
+		ValidMovementTypes: Horizontal, Turn
 	Selectable:
 		Bounds: 20, 32, 0, -8
 	-DamagedByTerrain@VEINS:
@@ -154,6 +159,8 @@ MMCH:
 		Cost: 800
 	Tooltip:
 		Name: Titan
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
@@ -162,9 +169,8 @@ MMCH:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 56
-		Crushes: wall, crate, infantry
 	Health:
-		HP: 400
+		HP: 40000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -178,10 +184,12 @@ MMCH:
 		Sequence: stand
 	WithMoveAnimation:
 		MoveSequence: walk
+		ValidMovementTypes: Horizontal, Turn
 	Turreted:
 		TurnSpeed: 5
 	AttackTurreted:
 		Voice: Attack
+		PauseOnCondition: empdisable
 	WithSpriteTurret:
 		Recoils: false
 	Armament:
@@ -213,6 +221,8 @@ HMEC:
 		Cost: 3000
 	Tooltip:
 		Name: Mammoth Mk. II
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
@@ -222,10 +232,10 @@ HMEC:
 	Mobile:
 		TurnSpeed: 3
 		Speed: 42
-		Crushes: wall, crate, infantry
 	Health:
-		HP: 800
+		HP: 80000
 	SelfHealing:
+		Step: 500
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -234,6 +244,7 @@ HMEC:
 		MaxHeightDelta: 3
 	AttackFrontal:
 		Voice: Attack
+		PauseOnCondition: empdisable
 	Armament@MISSILES:
 		Weapon: MammothTusk
 		LocalOffset: -243,-368,1208, -243,368,1208
@@ -257,19 +268,20 @@ SONIC:
 		Cost: 1300
 	Tooltip:
 		Name: Disruptor
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 120
 		Prerequisites: ~gaweap, gatech, ~techlevel.high
 		Description: Armored high-tech vehicle with\nlong range and sonic armament.\n  Strong vs Infantry, Vehicles, Buildings\n  Weak vs Aircraft
 	Targetable:
-		TargetTypes: Ground, Vehicle, Repair, Disruptor
+		TargetTypes: Ground, Vehicle, Disruptor
 	Mobile:
 		TurnSpeed: 4
 		Speed: 56
-		Crushes: wall, crate, infantry
 	Health:
-		HP: 500
+		HP: 50000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
@@ -281,6 +293,8 @@ SONIC:
 		LocalOffset: -71,0,580
 	AttackTurreted:
 		Voice: Attack
+		PauseOnCondition: empdisable
+		OpportunityFire: False
 	Turreted:
 		TurnSpeed: 5
 		Offset: -170,0,0
@@ -304,19 +318,22 @@ JUGG:
 	Tooltip@DEPLOYED:
 		Name: Juggernaut (deployed)
 		RequiresCondition: deployed
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 100
 		Prerequisites: ~gaweap, garadr, ~techlevel.high
 		Description: Mobile Artillery Mech.\nNeeds to deploy in order to shoot.\n  Strong vs Ground units\n  Weak vs Aircraft
 	Health:
-		HP: 350
+		HP: 35000
 	Armor:
 		Type: Light
 	Mobile:
 		Speed: 71
 		TurnSpeed: 5
-		RequiresCondition: !empdisable && undeployed
+		ImmovableCondition: !undeployed
+		RequireForceMoveCondition: !undeployed
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 9c0
@@ -332,13 +349,24 @@ JUGG:
 		RequiresCondition: undeployed
 	WithMoveAnimation:
 		MoveSequence: walk
+		ValidMovementTypes: Horizontal, Turn
 	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
+		UndeployOnMove: true
+		UndeployOnPickup: true
 		Facing: 96
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySound: place2.aud
-		UndeploySound: clicky1.aud
+		DeploySounds: place2.aud
+		UndeploySounds: clicky1.aud
+		Voice: Move
+	EntersTunnels:
+		RequireForceMoveCondition: !undeployed
+	Repairable:
+		RequireForceMoveCondition: !undeployed
+	Passenger:
+		RequireForceMoveCondition: !undeployed
 	GrantCondition@PREVIEWWORKAROUND:
 		Condition: real-actor
 	QuantizeFacingsFromSequence:
@@ -364,7 +392,12 @@ JUGG:
 	AttackTurreted@deployed:
 		Voice: Attack
 		Armaments: deployed
+		Turrets: deployed
 		RequiresCondition: deployed
+		PauseOnCondition: empdisable
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
+		OutsideRangeRequiresForceFire: True
 	Armament@deployed:
 		Name: deployed
 		Turret: deployed
@@ -374,9 +407,7 @@ JUGG:
 		MuzzleSequence: muzzle
 		MuzzlePalette: effect-ignore-lighting
 	WithMuzzleOverlay:
-	Carryable:
-		RequiresCondition: undeployed
 	RevealOnFire:
 		ArmamentNames: deployed
-	SelectionDecorations:
-		VisualBounds: 48,40,0,-8
+	Selectable:
+		DecorationBounds: 48,40,0,-8
